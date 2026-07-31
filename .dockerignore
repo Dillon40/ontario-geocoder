@@ -1,0 +1,73 @@
+# Version control
+.git
+.gitignore
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Testing
+tests/
+.pytest_cache/
+.coverage
+.coverage.*
+.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment & secrets
+.env
+.env.local
+.env.backup.*
+*.key
+
+# Documentation & notes
+docs/
+personal_notes/
+*.md
+!README.md
+
+# Data files (large, not needed at runtime)
+data/
+data_sourcing/data_sources/
+National_Address_Register_*/
+ODA_ON_*/
+ontario_municipalities_*/
+statcan_FSA_shapes/
+statcan_metro_shapes/
+reports/
+sample_input_data/
+*.dump
+*.backup
+*_export.sql
+*_backup.sql
+*_scrape_*.csv
+*_scrape_*.json
+*_validation_report.json
+toronto_*.json
+guelph_*.json
+ottawa_*.json
+
+# Data sourcing setup tooling (not needed at runtime)
+dependency_setup/
+
+# Docker files (no need to copy into image)
+Dockerfile
+docker-compose*.yml
+
+# Claude
+.claude/

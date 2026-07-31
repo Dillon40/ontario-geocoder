@@ -1,0 +1,77 @@
+# Dependencies
+node_modules/
+venv/
+.venv/
+*.pyc
+__pycache__/
+
+# Build outputs
+dist/
+build/
+*.o
+*.egg-info/
+
+# Environment & secrets
+.env
+.env.local
+.env.backup.*
+*.key
+
+# Personal Notes
+personal_notes/
+TASKS.md
+
+# Database dump files (but keep schema/migration SQL in database/)
+*.dump
+*.backup
+# Large SQL exports
+*_export.sql
+*_backup.sql
+
+# Data directory (large datasets - consolidated)
+/data/
+
+# Downloaded data sources (large GIS files)
+data_sourcing/data_sources/
+
+# Legacy data directories (if not moved yet)
+National_Address_Register_*/
+ODA_ON_*/
+ontario_municipalities_*/
+statcan_FSA_shapes/
+statcan_metro_shapes/
+
+# Data files and reports
+etl_verification_report.txt
+reports/
+sample_input_data/
+*_scrape_*.csv
+*_scrape_*.json
+*_validation_report.json
+
+# Large data JSON files (but keep config files)
+**/geocode*.json
+**/validation*.json
+**/scrape*.json
+toronto_*.json
+guelph_*.json
+ottawa_*.json
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.code-workspace
+.claude/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+.coverage.*
+
+# Type checking
+.mypy_cache/

@@ -1,0 +1,45 @@
+# =============================================================================
+# Property Geocoder - ETL Dockerfile
+# Single-stage build for data sourcing jobs (downloaders, importers, transformers)
+#
+# Usage:
+#   docker compose run --rm etl data_sourcing.setup_data --all-confirmed
+#   docker compose run --rm etl data_sourcing.importers.import_production_data
+# =============================================================================
+
+FROM python:3.11.15-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_LINK_MODE=copy
+
+# Install build + runtime dependencies
+# - build-essential, libpq-dev: needed for psycopg2/asyncpg compilation
+# - gdal-bin, libgdal-dev: needed by geopandas/fiona for shapefile processing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    gdal-bin \
+    libgdal-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv for fast package management
+RUN pip install uv
+
+WORKDIR /app
+
+# Copy dependency files and source (needed for hatchling build)
+COPY pyproject.toml uv.lock ./
+COPY data_sourcing/ ./data_sourcing/
+COPY config/ ./config/
+
+# Create virtual environment (at UV_PROJECT_ENVIRONMENT) and install
+# dependencies exactly as pinned in uv.lock (fails if the lock is stale)
+RUN uv sync --frozen --no-dev --no-cache
+
+ENV PATH="/opt/venv/bin:$PATH"
+
+ENTRYPOINT ["python", "-m"]

@@ -1,0 +1,807 @@
+====================================================================================================
+DATABASE SCHEMA FIELDS (target fields for field_mappings):
+====================================================================================================
+  - property_id
+  - street_number
+  - civic_no_suffix
+  - street_name
+  - street_suffix
+  - street_direction
+  - unit_no
+  - full_address
+  - city
+  - province
+  - postal_code
+  - fsa_code
+  - latitude
+  - longitude
+
+====================================================================================================
+SOURCE SCHEMAS BY CONFIG ORDER
+====================================================================================================
+
+### _nar_field_mapping
+--------------------------------------------------------------------------------
+  FILE NOT FOUND for _nar_field_mapping
+
+
+### guelph
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/guelph_addresses/guelph_addresses.geojson
+Available fields (50):
+  ADDID                          = 55142                                             
+  ADDID_TEXT                     = "55142"                                           
+  ADDLEG                         = "51 CORK ST W"                                    
+  ADDLOCINFO                     = null                                              
+  ADDRESS                        = "51 Cork Street West"                              ← full_address
+  AMAID                          = nan                                               
+  BUILDING                       = null                                              
+  ELEV                           = null                                              
+  FLOOR                          = null                                              
+  FULLNAME                       = "Cork Street West"                                
+  GPID                           = 2000001751                                         ← gpid
+  GlobalID                       = "{6E4C61EC-C1A3-4FAE-99C0-2CEE8AB6F62A}"          
+  HAS_UNIT                       = "N"                                               
+  LABEL                          = "51"                                              
+  LANDMKNAME                     = null                                              
+  LAT                            = 43.543327                                          ← latitude
+  LONG                           = -80.253393                                         ← longitude
+  MSAGCOMM                       = "GUE"                                             
+  NAME                           = ""                                                
+  OBJECTID                       = 1                                                 
+  PARITY                         = "O"                                               
+  PIN                            = 712880109                                          ← pin
+  PLACE                          = "Guelph"                                           ← city
+  PLACEMENT                      = "Parcel"                                          
+  PLACETYPE                      = "residence"                                       
+  POSTCODE                       = "N1H 2X3"                                          ← postal_code
+  POSTCOMM                       = null                                              
+  QUALIFIER                      = ""                                                
+  ROLLNO                         = "2308050004061000020"                             
+  ROLLNO_15                      = "230805000406100"                                 
+  ROLL_NO                        = "050004061000020"                                  ← assessment_roll_number
+  ROOM                           = null                                              
+  SEAT                           = null                                              
+  SEGMENTID                      = 6696                                              
+  STATION_RESPONSE_ORDER         = "1-4-5-2-3-6"                                     
+  STATUS                         = "Active"                                          
+  STDIR                          = "West"                                             ← street_direction
+  STNAME                         = "Cork"                                             ← street_name
+  STREETID                       = 1421                                              
+  STREETNAME                     = "CORK ST W"                                       
+  STREETNO                       = "51"                                               ← street_number
+  STSUF                          = "Street"                                           ← street_suffix
+  UNIT_NO                        = ""                                                 ← unit_no
+  UTM_X                          = 560318.209                                        
+  UTM_Y                          = 4821418.588                                       
+  WARD                           = 3                                                 
+  created_date                   = nan                                               
+  created_user                   = null                                              
+  last_edited_date               = 1724935288000                                     
+  last_edited_user               = "GISCA"                                           
+
+
+### toronto
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/toronto_addresses/toronto_addresses.geojson
+Available fields (37):
+  ADDRESS_CLASS                  = "L"                                               
+  ADDRESS_CLASS_DESC             = "Land"                                            
+  ADDRESS_FULL                   = "15 Muskoka Ave"                                   ← full_address
+  ADDRESS_ID                     = 814                                               
+  ADDRESS_ID_LINK                = nan                                               
+  ADDRESS_NUMBER                 = "15"                                              
+  ADDRESS_POINT_ID               = 9109405                                            ← property_id
+  ADDRESS_POINT_ID_LINK          = nan                                               
+  ADDRESS_STATUS                 = "None"                                            
+  ADDRESS_STRING_ID              = 2100                                              
+  CENTRELINE_ID                  = 914818                                            
+  CENTRELINE_MEASURE             = 67.51                                             
+  CENTRELINE_OFFSET              = 16.32                                             
+  CENTRELINE_SIDE                = "L"                                               
+  CLASS_FAMILY                   = 11011                                             
+  CLASS_FAMILY_DESC              = "Land, Structure, Structure Entrance"             
+  GENERAL_USE                    = "Unknown"                                         
+  GENERAL_USE_CODE               = 115001                                            
+  HI_NUM                         = nan                                               
+  HI_NUM_SUF                     = "None"                                            
+  LINEAR_NAME                    = "Muskoka"                                          ← street_name
+  LINEAR_NAME_DESC               = "None"                                            
+  LINEAR_NAME_DIR                = "None"                                             ← street_direction
+  LINEAR_NAME_FULL               = "Muskoka Ave"                                     
+  LINEAR_NAME_ID                 = 2159.0                                            
+  LINEAR_NAME_TYPE               = "Ave"                                              ← street_suffix
+  LO_NUM                         = 15                                                 ← street_number
+  LO_NUM_SUF                     = "None"                                            
+  MAINT_STAGE                    = "REGULAR"                                         
+  MUNICIPALITY                   = "ET"                                              
+  MUNICIPALITY_NAME              = "Etobicoke"                                        ← city
+  OBJECTID                       = "1491582"                                         
+  PLACE_NAME                     = "None"                                            
+  PLACE_NAME_ALL                 = "None"                                            
+  WARD                           = "03"                                              
+  WARD_NAME                      = "Etobicoke-Lakeshore"                             
+  _id                            = 1                                                 
+
+
+### ottawa
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/ottawa_addresses/ottawa_addresses.geojson
+Available fields (10):
+  ADDRNUM                        = 6583                                               ← street_number
+  ADDRTYPE                       = "MAIN"                                            
+  CREATED_DATE                   = 1352851200000                                     
+  FULLADDR                       = "6583 HARVEST GROVE DR"                            ← full_address
+  FULLNAME                       = "HARVEST GROVE DR"                                 ← street_name
+  MODIFIED_DATE                  = 1448880273000                                     
+  OBJECTID                       = 1                                                  ← property_id
+  PI_MUNICIPAL_ADDRESS_ID        = "__3W8HWJ"                                        
+  QUALIFIER                      = null                                               ← civic_no_suffix
+  UNITID                         = null                                               ← unit_no
+
+
+### haldimand_county
+--------------------------------------------------------------------------------
+  ERROR reading file: Failed to read GeoJSON data; At line 15451, character 1369: Unterminated array
+
+
+### london_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/london_addresses/london_addresses.geojson
+Available fields (19):
+  CondoNumber                    = ""                                                
+  ElectionWard                   = "4"                                               
+  FullAddress                    = "420 Boullee St"                                   ← full_address
+  FullNumber                     = "420"                                             
+  FullStreetName                 = "Boullee St"                                      
+  FullStreetName_ID              = 307                                               
+  GIS_ID                         = 142262                                            
+  IntegerMunicipalNumber         = 420                                               
+  LastEditDate                   = 1048636800000                                     
+  MunicipalNumber                = "420"                                              ← street_number
+  MunicipalNumberQualifier       = " "                                                ← civic_no_suffix
+  OBJECTID                       = 204531                                             ← property_id
+  Status                         = "IA"                                              
+  StreetClassification           = "Neighbourhood Street"                            
+  StreetDirection                = " "                                                ← street_direction
+  StreetName                     = "Boullee"                                          ← street_name
+  StreetType                     = "St"                                               ← street_suffix
+  UnitFullAddress                = "420 Boullee St"                                  
+  UnitNumber                     = " "                                                ← unit_no
+
+
+### middlesex_county_addresses
+--------------------------------------------------------------------------------
+  FILE NOT FOUND for middlesex_county_addresses
+
+
+### windsor_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/windsor_addresses/windsor_addresses.geojson
+Available fields (25):
+  Address                        = "4401 MOUNT ROYAL DR  "                            ← full_address
+  AmandaArea                     = "0.93"                                            
+  Depth                          = "0"                                               
+  Frontage                       = "76.53"                                           
+  Legal1                         = "PLAN 1361; LOTS 456 TO 459; 461 TO 464 & PT L"   
+  Legal2                         = " "                                               
+  Legal3                         = " "                                               
+  OBJECTID                       = 1                                                  ← property_id
+  PROP_RSN                       = 48501                                             
+  PropCode                       = "700"                                             
+  RollNumber                     = "080-130-08300-0000"                              
+  Ward                           = "1"                                                ← ward
+  X                              = 334093.42568923                                   
+  Y                              = 4678777.02464003                                  
+  Zoning                         = "ID1.1"                                           
+  gisid                          = "48501"                                           
+  last_edited_date               = 1726869294000                                     
+  propertyrsn                    = "48501"                                           
+  roll_number                    = "3739080130083000000"                              ← assessment_roll_number
+  street_address                 = "4401"                                             ← street_number
+  street_direction               = null                                               ← street_direction
+  street_name                    = "MOUNT ROYAL"                                      ← street_name
+  street_name_alias              = null                                              
+  street_suffix                  = "DR"                                               ← street_suffix
+  unit_number                    = null                                               ← unit_no
+
+
+### norfolk_county_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/norfolk_county_addresses/norfolk_county_addresses.geojson
+Available fields (14):
+  Bell_Dir                       = " "                                               
+  Bell_Name                      = "OLD HIGHWAY 24"                                  
+  Bell_Suf                       = " "                                               
+  CIVIC_ADD                      = "1939 OLD HIGHWAY 24"                              ← full_address
+  CityViewID                     = 26517                                             
+  FID                            = 1                                                  ← property_id
+  LAT                            = "80° 19' 1.765" W"                                
+  LONG                           = "42° 59' 37.843" N"                               
+  NGIS_RD_ID                     = 1703180                                           
+  NUMBER_                        = "1939"                                             ← street_number
+  ROAD_NAME                      = "OLD HIGHWAY 24"                                   ← street_name
+  ROLLNUM                        = "3310336010303060000"                              ← assessment_roll_number
+  TYPE                           = " "                                               
+  UnitNumber                     = " "                                                ← unit_no
+
+
+### leeds_grenville_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/leeds_grenville_addresses/leeds_grenville_addresses.geojson
+Available fields (15):
+  ADDRESS911                     = "27 William Street, Bastard/South Burgess Twp"    
+  ADDRESSAGOL                    = "27 William Street, Rideau Lakes"                  ← full_address
+  ARN                            = "083183105621400"                                  ← assessment_roll_number
+  CIVICNUM                       = "27"                                               ← street_number
+  GEOTOWNSHP                     = "Bastard/South Burgess Twp"                       
+  Id                             = 1200000001                                        
+  LABEL                          = "27"                                              
+  MUN                            = "RIDEAU LAKES"                                     ← city
+  OBJECTID                       = 10835                                             
+  OBJECTID_1                     = 1                                                  ← property_id
+  OWNER                          = "NOT AVAILABLE"                                   
+  REFORMLOC                      = "WILLIAM ST"                                      
+  STREET                         = "WILLIAM STREET"                                   ← street_name
+  TYPE                           = null                                              
+  UNITNUM                        = " "                                                ← unit_no
+
+
+### essex_county_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/essex_county_addresses/essex_county_addresses.geojson
+Available fields (20):
+  ADDRESS                        = "2571"                                            
+  AddressComplete                = "2571 ST ALPHONSE ST"                              ← full_address
+  CITY                           = "TECUMSEH"                                         ← city
+  CIVICADD                       = "ST ALPHONSE"                                     
+  CIVICNO                        = "2571"                                             ← street_number
+  COMMENTS                       = "St. Alphonse Sanitary PS"                        
+  Combined                       = "2571 ST ALPHONSE"                                
+  DIRECTION                      = " "                                                ← street_direction
+  GIS_ID                         = "T_1"                                             
+  GIS_ID_OLD                     = 1                                                 
+  OBJECTID                       = 1                                                 
+  OBJECTID_1                     = 1                                                  ← property_id
+  PROP_ROLL                      = " "                                               
+  PROP_RSN                       = " "                                               
+  STREETNAME                     = "ST ALPHONSE AVE"                                  ← street_name
+  SUFFIX                         = "ST"                                               ← street_suffix
+  TYPE                           = "Situs"                                           
+  Vacant                         = null                                              
+  X                              = 344889                                            
+  Y                              = 4682455                                           
+
+
+### brantford_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/brantford_addresses/brantford_addresses.geojson
+Available fields (9):
+  FULLADDRESS                    = "5 NEWCASTLE ST"                                   ← full_address
+  OBJECTID                       = 1                                                  ← property_id
+  OBJECTID_1                     = 101800                                            
+  POSTALCODE                     = "N3R 1Y5"                                          ← postal_code
+  STNUMSUFF                      = null                                               ← civic_no_suffix
+  STREETNAME                     = "NEWCASTLE"                                        ← street_name
+  STREETNUM                      = "5"                                                ← street_number
+  STREETNUMIN                    = 5                                                 
+  STREETTYPE                     = "ST"                                               ← street_suffix
+
+
+### burlington_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/burlington_addresses/burlington_addresses.geojson
+Available fields (22):
+  ADDRESS                        = "2104 MUIRFIELD CRT.   "                           ← full_address
+  CITY                           = "Burlington"                                       ← city
+  COUNTRY                        = "Canada"                                          
+  COUNTRYCODE                    = "CAN"                                             
+  HOUSENUM                       = "2104"                                             ← street_number
+  LATITUDE                       = 43.38803293                                        ← latitude
+  LONGITUDE                      = -79.80634537                                       ← longitude
+  NAME                           = null                                              
+  OBJECTID                       = 1                                                  ← property_id
+  PROPCODE                       = 10                                                
+  PROPDESC                       = "Property"                                        
+  PROPERTYDESCASSESS             = null                                              
+  PROPERTYRSN                    = 59354                                             
+  PROPINFOVALUE_WARD             = 6                                                 
+  PROPSTATUSCODE                 = 1                                                 
+  PROPSTATUSDESC                 = "Active"                                          
+  PROVINCE                       = "Ontario"                                         
+  STRDIR                         = null                                               ← street_direction
+  STREET                         = "MUIRFIELD"                                        ← street_name
+  STRTYPE                        = "CRT."                                             ← street_suffix
+  UNIT                           = null                                               ← unit_no
+  UNITTYPE                       = null                                              
+
+
+### muskoka_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/muskoka_addresses/muskoka_addresses.geojson
+Available fields (9):
+  Location                       = "5 PINERIDGE GT Unit 10"                           ← full_address
+  Municipality                   = "Town of Gravenhurst"                              ← city
+  OBJECTID                       = 1                                                  ← property_id
+  PropertyNum                    = "440201000100100"                                 
+  StreetAlias                    = null                                              
+  StreetName                     = "PINERIDGE GT"                                     ← street_name
+  StreetNumber                   = 5                                                  ← street_number
+  StreetQual                     = null                                               ← civic_no_suffix
+  StreetUnit                     = "10"                                               ← unit_no
+
+
+### oakville_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/oakville_addresses/oakville_addresses.geojson
+Available fields (23):
+  ADDRESS                        = "90 CHANCERY LANE E"                               ← full_address
+  ADDR_ALIAS                     = null                                              
+  CITY                           = null                                               ← city
+  GLOBALID                       = "{B4D0C53B-ECA2-42BD-B8FE-8866D0E41606}"          
+  LABEL                          = "90"                                              
+  OBJECTID                       = 1                                                  ← property_id
+  POSTAL                         = null                                               ← postal_code
+  PROV                           = null                                              
+  SNAME                          = "CHANCERY LANE E"                                 
+  STREET_DIR                     = "E"                                                ← street_direction
+  STREET_DIR_PREFIX              = null                                              
+  STREET_NAME                    = "CHANCERY"                                         ← street_name
+  STREET_NUM                     = "90"                                               ← street_number
+  STREET_TYPE                    = "LANE"                                             ← street_suffix
+  STREET_TYPE_PREFIX             = null                                              
+  SUFFIX                         = " "                                                ← civic_no_suffix
+  SUITE                          = null                                              
+  TOP_ALIAS                      = null                                              
+  UNIT                           = null                                               ← unit_no
+  created_date                   = nan                                               
+  created_user                   = null                                              
+  last_edited_date               = 1680550881000                                     
+  last_edited_user               = "DBO"                                             
+
+
+### milton_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/milton_addresses/milton_addresses.geojson
+Available fields (12):
+  ADDRESS_NUM                    = 7265                                               ← street_number
+  ADU                            = null                                              
+  ADU_UNIT_NO                    = null                                              
+  Address_ID                     = 2                                                 
+  BLOCK                          = null                                              
+  DISPLAY_NAME                   = "7265 NO 5 SR"                                     ← full_address
+  GEOSTNAME                      = "NO 5"                                             ← street_name
+  LOT                            = null                                              
+  OBJECTID                       = 1                                                  ← property_id
+  STREET_TYPE                    = "SIDE ROAD"                                        ← street_suffix
+  ST_DIR_SUFFIX                  = null                                               ← street_direction
+  UNIT_NUMBER                    = null                                               ← unit_no
+
+
+### barrie_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/barrie_addresses/barrie_addresses.geojson
+Available fields (15):
+  ADDRESSID                      = 103247487                                         
+  ADDRNUMBER                     = "204"                                              ← street_number
+  Easting                        = "602907.4515000004"                               
+  FULLADDR                       = "204 ALVA ST"                                      ← full_address
+  LASTUPDATE                     = 1463482928000                                     
+  Latitude                       = "44.36405818108328"                                ← latitude
+  Longitude                      = "-79.70852984535617"                               ← longitude
+  Northing                       = "4913120.2853999995"                              
+  OBJECTID                       = 1                                                 
+  PARCELID                       = "1041917"                                          ← property_id
+  SSTRDIR                        = null                                               ← street_direction
+  SSTRNAME                       = "ALVA"                                             ← street_name
+  SSTRSUFF                       = "ST"                                               ← street_suffix
+  STATUS                         = "Current"                                         
+  UNITNUMBER                     = null                                               ← unit_no
+
+
+### cornwall
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/cornwall/cornwall.geojson
+Available fields (16):
+  ADDRESS                        = "7 WALTER ST"                                      ← full_address
+  AddressID                      = 583                                               
+  BUILDING                       = null                                              
+  CITY                           = "CORNWALL"                                         ← city
+  COUNTRY                        = "CA"                                              
+  DIRECTION                      = null                                               ← street_direction
+  LAST_EDIT                      = 1104537600000                                     
+  OBJECTID                       = 1                                                  ← property_id
+  POLY_ID                        = 16414                                             
+  POSTAL                         = "K6J1Z9"                                           ← postal_code
+  PROVINCE                       = "ON"                                               ← province
+  STREET                         = "WALTER"                                           ← street_number
+  STREET_LNG                     = "WALTER ST"                                       
+  ST_NUMBER                      = 7                                                 
+  SUFFIX                         = "ST"                                               ← street_suffix
+  UNIT                           = null                                               ← unit_no
+
+
+### kawartha_lakes_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/kawartha_lakes_addresses/kawartha_lakes_addresses.geojson
+Available fields (27):
+  ARUApproved                    = null                                              
+  AddressID                      = 401                                               
+  FullAddress                    = "899 Cottingham Road, Emily Twp, Kawartha Lake"    ← full_address
+  HwyCountyNum                   = null                                              
+  MultiUnitLot                   = null                                              
+  OBJECTID                       = 4751220                                            ← property_id
+  PlaceName                      = "Emily Twp"                                       
+  SingleLowerTier                = "Kawartha Lakes"                                   ← city
+  StreetAddress                  = "899 Cottingham Road"                             
+  StreetDirectionAbrv            = null                                               ← street_direction
+  StreetDirectionPrefix          = null                                              
+  StreetDirectionSuffix          = null                                              
+  StreetNameAlt                  = null                                              
+  StreetNameAlt2                 = null                                              
+  StreetNameBody                 = "Cottingham"                                       ← street_name
+  StreetNameFull                 = "Cottingham Road"                                 
+  StreetNumSuffixConcat          = "899"                                             
+  StreetNumber                   = 899                                                ← street_number
+  StreetNumberPrefix             = null                                              
+  StreetNumberSuffix             = null                                              
+  StreetParity                   = null                                              
+  StreetSegmentID                = 0                                                 
+  StreetTypeSuffix               = "Road"                                            
+  StreetTypeSuffixAbrv           = "Rd"                                              
+  UnitNumber                     = null                                               ← unit_no
+  Xlong                          = -78.44108925                                      
+  Ylat                           = 44.31434276                                       
+
+
+### hamilton_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/hamilton_addresses/hamilton_addresses.geojson
+Available fields (13):
+  COMMUNITY                      = "Glanbrook"                                        ← city
+  COUNTRY                        = "Canada"                                          
+  FULL_STREET_NAME               = "Hall Road"                                        ← full_address
+  MUNICIPALITY                   = "City of Hamilton"                                
+  NUMBER_COMPLETE                = "681"                                              ← street_number
+  OBJECTID                       = 1                                                  ← property_id
+  POSTAL_CODE                    = "L0R 1C0"                                          ← postal_code
+  PROVINCE                       = "Ontario"                                          ← province
+  SETTLEMENT                     = null                                              
+  STREET_NAME                    = "Hall"                                             ← street_name
+  STREET_SUFFIX_DIRECTION        = null                                               ← street_direction
+  STREET_SUFFIX_TYPE             = "Road"                                             ← street_suffix
+  UNIT_NUMBER_COMPLETE           = null                                               ← unit_no
+
+
+### kingston_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/kingston_addresses/kingston_addresses.geojson
+Available fields (19):
+  ADDRESS_ID                     = 3007                                              
+  ADDRESS_NUMBER                 = 320                                                ← street_number
+  ADDRESS_NUMBER_SUFFIX          = null                                              
+  COLLECTION_TYPE                = "Curbside Collection"                             
+  DIRECTION_SUFFIX               = null                                               ← street_direction
+  ELECTORAL_DISTRICT_NAME        = "Sydenham"                                        
+  FULL_ADDRESS                   = "320 EARL ST"                                      ← full_address
+  GARBAGE_DAY                    = "Wednesday"                                       
+  GLOBALID                       = "{704EB156-2636-4A8D-8B4F-AAED559221E6}"          
+  MUNICIPALITY                   = "KINGSTON"                                         ← city
+  NEIGHBOURHOOD                  = "Queen's"                                         
+  OBJECTID                       = 1                                                  ← property_id
+  POSTAL_CODE                    = "K7L 2J2"                                          ← postal_code
+  RECYCLING_DAY                  = "Wednesday"                                       
+  STREET                         = "EARL ST"                                          ← street_name
+  STREET_BODY_NAME               = "EARL"                                            
+  STREET_TYPE_SUFFIX             = "ST"                                               ← street_suffix
+  UNIT                           = null                                               ← unit_no
+  UNIT_TYPE                      = "BASE"                                            
+
+
+### peterborough
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/peterborough/peterborough.geojson
+Available fields (17):
+  ADDNUM                         = 12                                                 ← street_number
+  ADDRESS                        = "12 Springbrook Dr"                                ← full_address
+  ADD_ID                         = 136                                               
+  ADD_LOC                        = "MD"                                              
+  ADD_TYPE                       = "P"                                               
+  BLDG_UNIT                      = "B"                                                ← unit_no
+  DIRECTION                      = null                                               ← street_direction
+  FULL_STREETNAME                = "Springbrook Dr"                                  
+  LABEL                          = "12-B"                                            
+  MUNICIPALITY                   = "Peterborough"                                     ← city
+  OBJECTID                       = 1                                                  ← property_id
+  ROTATION                       = 16.60077838                                       
+  STATUS                         = "ACTV"                                            
+  STREETNAME                     = "Springbrook"                                      ← street_name
+  STREETTYPE                     = "Dr"                                               ← street_suffix
+  STREETTYPE_DESC                = "Drive"                                           
+  STREET_ID                      = "30500"                                           
+
+
+### parry_sound_district_addresses
+--------------------------------------------------------------------------------
+  FILE NOT FOUND for parry_sound_district_addresses
+
+
+### dufferin_county_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/dufferin_county_addresses/dufferin_county_addresses.geojson
+Available fields (10):
+  ADDYALIAS                      = "99 ZINA ST"                                      
+  ADDYBELL                       = "99 ZINA ST"                                      
+  CIVICFULL                      = "99"                                              
+  CIVIC_NO                       = "99"                                               ← street_number
+  FULLADDY                       = "99 ZINA STREET"                                   ← full_address
+  OBJECTID                       = 1                                                  ← property_id
+  STREETNAME                     = "ZINA STREET"                                      ← street_name
+  ST_TYPE                        = "ST"                                               ← street_suffix
+  TOWN                           = "Orangeville"                                      ← city
+  UNIT                           = " "                                                ← unit_no
+
+
+### durham_region_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/durham_region_addresses/durham_region_addresses.geojson
+Available fields (21):
+  CIVIC_NUM                      = "34"                                               ← street_number
+  CIVIC_SFX                      = null                                               ← civic_no_suffix
+  DIR_SHORT                      = null                                               ← street_direction
+  EDIT_DATE                      = nan                                               
+  GlobalID                       = "{3ADE6CF2-52B8-4C17-AF42-63FE7D15EF8A}"          
+  MUNICIPALITY                   = "Ajax"                                             ← city
+  MXADDRESSCODE                  = "100002"                                          
+  MXCREATIONSTATE                = 2                                                 
+  MXORGID                        = "RMD"                                             
+  OBJECTID                       = 219755                                             ← property_id
+  POSTAL_CODE                    = "L1T 4L1"                                          ← postal_code
+  REGION_ID                      = "0000018573"                                      
+  ROAD_DIR                       = null                                              
+  ROAD_NAME                      = "Armitage"                                         ← street_name
+  ROAD_TYPE                      = "Crescent"                                         ← street_suffix
+  TOWN                           = "Ajax"                                            
+  TYPE_SHORT                     = "Cr"                                              
+  UNIT                           = "N"                                               
+  UNIT_NUM                       = null                                              
+  UNIT_RANGE                     = null                                               ← unit_no
+  UNIT_TYPE                      = null                                              
+
+
+### frontenac_county_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/frontenac_county_addresses/frontenac_county_addresses.geojson
+Available fields (11):
+  EditDate                       = 1676061139319                                     
+  GlobalID                       = "4641324e-3b50-496c-9298-d180ad88100c"            
+  Location                       = "2774 HOWE ISLAND DRIVE"                          
+  Municipality                   = "Frontenac Islands"                                ← city
+  OBJECTID                       = 1                                                  ← property_id
+  Qualifier                      = " "                                               
+  StreetName                     = "HOWE ISLAND DRIVE"                                ← street_name
+  StreetNumber                   = 2774                                               ← street_number
+  UnitNumber                     = " "                                                ← unit_no
+  UpperNumber                    = nan                                               
+  Verified                       = "Y"                                               
+
+
+### greater_sudbury_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/greater_sudbury_addresses/greater_sudbury_addresses.geojson
+Available fields (26):
+  ADDRESSALIAS                   = null                                              
+  ADDRESSID                      = "9282"                                            
+  ADDRESSLIFECYCLESTATUS         = "Active"                                          
+  ADDRESSNUMBER                  = "938"                                             
+  ADDRESSNUMBERPREFIX            = null                                              
+  ADDRESSNUMBERSUFFIX            = null                                              
+  ALTERNATENAME1                 = "Municipal Road 40"                               
+  ALTERNATENAME2                 = "Regional Road 40"                                
+  ALTERNATENAME3                 = null                                              
+  ASSIGNEDADDRESSID              = null                                              
+  BASESTREETNAME                 = "Martindale"                                      
+  COMMUNITY                      = "Sudbury"                                          ← city
+  CREATEDATE                     = nan                                               
+  FULLADDRESSTEXT                = "938 Martindale Road"                              ← full_address
+  FULLSTREETNAME                 = "Martindale Road"                                  ← street_name
+  GLOBALID                       = "2cae0f52-843a-443b-9427-d155496651e0"            
+  LASTUPDATE                     = 1366622713000                                     
+  NAME                           = null                                              
+  OBJECTID                       = 1                                                  ← property_id
+  STREETPREFIX                   = null                                              
+  STREETSUFFIX                   = null                                              
+  STREETTYPE                     = "Road"                                             ← street_suffix
+  STYPE                          = "Primary"                                         
+  UNIT_AMENITY_TYPE              = null                                              
+  UNIT_OR_AMENITY                = null                                              
+  VERIFIED_DATE                  = nan                                               
+
+
+### hastings_county_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/hastings_county_addresses/hastings_county_addresses.geojson
+Available fields (15):
+  ADDRESS_NU                     = "27638"                                           
+  FID                            = 1                                                  ← property_id
+  Full_Add                       = "27638 HIGHWAY 28"                                 ← full_address
+  House_No                       = "27638"                                            ← street_number
+  House_Suf                      = " "                                                ← civic_no_suffix
+  LAT                            = 44.97802363                                        ← latitude
+  LONG                           = -77.97871165                                       ← longitude
+  MUNICIPALI                     = "FARA"                                             ← city
+  Rd_Dir                         = " "                                                ← street_direction
+  Rd_Name                        = "HIGHWAY 28"                                       ← street_name
+  Rd_Suf                         = " "                                                ← street_suffix
+  STREET_NAM                     = "HIGHWAY 28"                                      
+  UNIT_NUM                       = " "                                               
+  UNIT_TYPE                      = " "                                               
+  Unit                           = " "                                                ← unit_no
+
+
+### huron_county_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/huron_county_addresses/huron_county_addresses.geojson
+Available fields (16):
+  AddNum_Suf                     = null                                              
+  Add_Number                     = 191                                               
+  DateUpdate                     = 1756403356000                                     
+  FullAddress                    = "191 PEBBLE BEACH PARKWAY"                        
+  FullAddress_Mun                = "191 PEBBLE BEACH PARKWAY (South Huron)"           ← full_address
+  HuronID                        = 2357                                              
+  Mun                            = "SHu"                                             
+  OBJECTID                       = 1                                                  ← property_id
+  St_Name                        = "Pebble Beach"                                    
+  St_PosDir                      = null                                               ← street_direction
+  St_PosTyp                      = "Parkway"                                         
+  St_PreSep                      = null                                              
+  St_PreTyp                      = null                                              
+  StreetName                     = "  Pebble Beach Parkway "                          ← street_name
+  StreetNumber                   = "191"                                              ← street_number
+  Unit                           = null                                               ← unit_no
+
+
+### niagara_region_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/niagara_region_addresses/niagara_region_addresses.geojson
+Available fields (15):
+  CreateDate                     = 1100217600000                                     
+  Full_StreetNo                  = "3501"                                            
+  GSmartID                       = 11273175                                          
+  LifeCycleStatus                = "Active"                                          
+  Municipality                   = "Thorold"                                          ← city
+  OBJECTID                       = 1                                                  ← property_id
+  Qualifier                      = null                                               ← civic_no_suffix
+  StreetDir                      = null                                               ← street_direction
+  StreetName                     = "Schmon"                                           ← street_name
+  StreetNo                       = 3501                                               ← street_number
+  StreetNoUpper                  = null                                              
+  StreetType                     = "Parkway"                                          ← street_suffix
+  Unit                           = null                                               ← unit_no
+  Xcoord                         = 643193.055                                        
+  Ycoord                         = 4775147.234                                       
+
+
+### peel_region_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/peel_region_addresses/peel_region_addresses.geojson
+Available fields (15):
+  HOUSESTYLE                     = "Townhouse"                                       
+  LANDUSE                        = "Residential"                                     
+  LATITUDE                       = 43.56263799                                       
+  LINK_ID                        = 36836                                             
+  LONGITUDE                      = -79.70125041                                      
+  MUNICIPALITY                   = "Mississauga"                                      ← city
+  OBJECTID                       = 1                                                  ← property_id
+  ROPADRID                       = 1027                                              
+  SIDE_OF_RD                     = "R"                                               
+  STREETDIRECTION                = null                                               ← street_direction
+  STREETNAME                     = "THE CHASE"                                        ← street_name
+  STREETNUM                      = "1725"                                             ← street_number
+  STREETTYPE                     = null                                               ← street_suffix
+  UNIT_IDENTIFIER                = "8"                                                ← unit_no
+  WARD                           = "8"                                               
+
+
+### sarnia_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/sarnia_addresses/sarnia_addresses.geojson
+Available fields (15):
+  ADDRESS                        = "1622 Modeland Road"                               ← full_address
+  CITY                           = "Sarnia"                                           ← city
+  GlobalID                       = "5411a919-8bc4-4bf5-8cba-c180013c72ef"            
+  OBJECTID_1                     = 1                                                  ← property_id
+  STDIR                          = " "                                                ← street_direction
+  STDIR_A                        = " "                                               
+  STNAME                         = "Modeland"                                         ← street_name
+  STNUM                          = "1622"                                             ← street_number
+  STTYPE                         = "Road"                                             ← street_suffix
+  STTYPE_A                       = "RD"                                              
+  TOWNSHIP                       = "Sarnia"                                          
+  created_date                   = 1712260188224                                     
+  created_user                   = "richard.jackson_Sarnia"                          
+  last_edited_date               = 1712260188224                                     
+  last_edited_user               = "richard.jackson_Sarnia"                          
+
+
+### thunder_bay_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/thunder_bay_addresses/thunder_bay_addresses.geojson
+Available fields (17):
+  ADDRESS                        = "1251"                                            
+  ADDRESS_NUMBER                 = 1251                                               ← street_number
+  ADDRESS_QUALIFIER              = ""                                                 ← civic_no_suffix
+  CITY                           = "THUNDER BAY"                                      ← city
+  COMPLETE                       = "1251 HEATH ST"                                    ← full_address
+  CTB_TYPE                       = "PARKS/OPEN SPACE"                                
+  GLOBALID                       = "e6c318da-b8cd-41e3-a5af-03d012ed7c5e"            
+  OBJECTID                       = 359717                                             ← property_id
+  PCL_PIN                        = "620260028"                                        ← pin
+  PROVINCE                       = "ON"                                               ← province
+  REFNAME                        = "ADDRESS-REGULAR"                                 
+  ROOT                           = "HEATH ST "                                       
+  ROWTYPE                        = "ST"                                               ← street_suffix
+  RSN                            = 39514                                             
+  SPLITLOC                       = null                                              
+  STREET                         = "HEATH"                                            ← street_name
+  TYPE                           = "City Owned"                                      
+
+
+### waterloo_region_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/waterloo_region_addresses/waterloo_region_addresses.geojson
+Available fields (14):
+  AddressNumber                  = "1116"                                             ← street_number
+  AddressPointType               = "Building"                                        
+  CreatedDate                    = nan                                               
+  FullAddress                    = "1116 Allemang Pl"                                
+  FullAddressWithSettlement      = "1116 Allemang Pl, Woolwich"                       ← full_address
+  FullStreetName                 = "Allemang Pl"                                      ← street_name
+  GlobalID                       = "{2CD41D07-1AAC-43BA-A20F-3666EB673647}"          
+  IsPrimary                      = "Yes"                                             
+  LastEditDate                   = 1499785587000                                     
+  Municipality                   = "Woolwich"                                         ← city
+  OBJECTID                       = 1                                                  ← property_id
+  Settlement                     = "Woolwich"                                        
+  UnitNumber                     = null                                               ← unit_no
+  UnitType                       = null                                              
+
+
+### york_region_addresses
+--------------------------------------------------------------------------------
+File: data_sourcing/data_sources/york_region_addresses/york_region_addresses.geojson
+Available fields (34):
+  ADDRESS_NUMBER                 = 18                                                 ← street_number
+  ADDRS_PNT_TYPE                 = "Single"                                          
+  ADD_NUM_SUFFIX                 = null                                               ← civic_no_suffix
+  COUNTRY                        = "CA"                                              
+  CREATE_DATE                    = 1156550400000                                     
+  FULL_CIVIC_ADDR                = "18 Eddington Place"                               ← full_address
+  FULL_STREET_NAME               = "Eddington Place"                                 
+  LIFESTATUS                     = "Active"                                          
+  MAIL_ADDRESS_NUMBER            = 18                                                
+  MAIL_ADDRESS_NUMBER_SUFFIX     = null                                              
+  MAIL_COMMUNITY_NAME            = "Maple"                                           
+  MAIL_FULL_ADDRESS_TEXT         = "18 Eddington Pl"                                 
+  MAIL_POSTAL_CODE               = "L6A 3P6"                                          ← postal_code
+  MAIL_PROVINCE                  = "ON"                                              
+  MAIL_STATUS                    = "V"                                               
+  MAIL_STREET_NAME               = "Eddington Place"                                 
+  MAIL_STREET_TYPE               = null                                              
+  MAIL_SUITE_NUMBER              = ""                                                
+  MAIL_UNIT_DESIGNATOR           = ""                                                
+  MODDATE                        = 1734983498000                                     
+  MUNICIPALITY                   = "Vaughan"                                          ← city
+  OBJECTID                       = 1                                                  ← property_id
+  PARID                          = 144821                                            
+  PNT_GIS_ID                     = 144821                                            
+  PREFIX_DIRECTION               = null                                               ← street_direction
+  PREFIX_TYPE                    = null                                              
+  PRO_DATE                       = "20251218"                                        
+  PRO_NAME                       = "Address Point FME Update"                        
+  STREET_NAME                    = "Eddington"                                        ← street_name
+  STREET_NAME_ID                 = 2691                                              
+  STREET_TYPE                    = "Place"                                            ← street_suffix
+  SUFFIX_DIRECTION               = null                                              
+  SUITE_NUMBER                   = null                                               ← unit_no
+  UNIT_DESIGNATOR                = null                                              

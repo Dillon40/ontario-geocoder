@@ -1,0 +1,2516 @@
+{
+  "_comment": "Dataset Field Mappings Configuration",
+  "_description": "Maps municipal dataset fields to both properties table and NAR schema",
+  "_nar_field_mapping": {
+    "street_number": "civic_no",
+    "street_suffix": "official_street_type",
+    "street_name": "official_street_name",
+    "street_direction": "official_street_dir",
+    "city": "csd_eng_name",
+    "postal_code": "mail_postal_code",
+    "unit_no": "apt_no_label",
+    "latitude": "bg_latitude",
+    "longitude": "bg_longitude"
+  },
+  "_note": "The field_mappings below are used for both properties table import and NAR enrichment matching",
+  "_transforms_note": "The transforms section configures the transform pipeline for each source",
+  "guelph": {
+    "municipality": "City of Guelph",
+    "province": "ON",
+    "postal_prefixes": [
+      "N1E",
+      "N1G",
+      "N1H",
+      "N1K",
+      "N1L"
+    ],
+    "field_mappings": {
+      "street_number": "STREETNO",
+      "street_name": "STNAME",
+      "street_suffix": "STSUF",
+      "street_direction": "STDIR",
+      "postal_code": "POSTCODE",
+      "city": "PLACE",
+      "latitude": "LAT",
+      "longitude": "LONG",
+      "full_address": "ADDRESS",
+      "pin": "PIN",
+      "gpid": "GPID",
+      "assessment_roll_number": "ROLL_NO",
+      "unit_no": "UNIT_NO"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Guelph has well-structured fields, no parsing needed"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true,
+        "_comment": "Parse suffixes from STREETNO if present (e.g., 100A)"
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false,
+        "_comment": "Guelph city names are already canonical"
+      },
+      "enrich_fsa": {
+        "enabled": false,
+        "_comment": "Guelph has postal codes in source data"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "toronto": {
+    "municipality": "City of Toronto",
+    "province": "ON",
+    "postal_prefixes": [
+      "M1A",
+      "M1B",
+      "M1C",
+      "M1E",
+      "M1G",
+      "M1H",
+      "M1J",
+      "M1K",
+      "M1L",
+      "M1M",
+      "M1N",
+      "M1P",
+      "M1R",
+      "M1S",
+      "M1T",
+      "M1V",
+      "M1W",
+      "M1X",
+      "M1Y",
+      "M1Z",
+      "M2A",
+      "M2B",
+      "M2C",
+      "M2E",
+      "M2G",
+      "M2H",
+      "M2J",
+      "M2K",
+      "M2L",
+      "M2M",
+      "M2N",
+      "M2P",
+      "M2R",
+      "M2S",
+      "M2T",
+      "M2V",
+      "M2W",
+      "M2X",
+      "M2Y",
+      "M2Z",
+      "M3A",
+      "M3B",
+      "M3C",
+      "M3E",
+      "M3G",
+      "M3H",
+      "M3J",
+      "M3K",
+      "M3L",
+      "M3M",
+      "M3N",
+      "M3P",
+      "M3R",
+      "M3S",
+      "M3T",
+      "M3V",
+      "M3W",
+      "M3X",
+      "M3Y",
+      "M3Z",
+      "M4A",
+      "M4B",
+      "M4C",
+      "M4E",
+      "M4G",
+      "M4H",
+      "M4J",
+      "M4K",
+      "M4L",
+      "M4M",
+      "M4N",
+      "M4P",
+      "M4R",
+      "M4S",
+      "M4T",
+      "M4V",
+      "M4W",
+      "M4X",
+      "M4Y",
+      "M4Z",
+      "M5A",
+      "M5B",
+      "M5C",
+      "M5E",
+      "M5G",
+      "M5H",
+      "M5J",
+      "M5K",
+      "M5L",
+      "M5M",
+      "M5N",
+      "M5P",
+      "M5R",
+      "M5S",
+      "M5T",
+      "M5V",
+      "M5W",
+      "M5X",
+      "M5Y",
+      "M5Z",
+      "M6A",
+      "M6B",
+      "M6C",
+      "M6E",
+      "M6G",
+      "M6H",
+      "M6J",
+      "M6K",
+      "M6L",
+      "M6M",
+      "M6N",
+      "M6P",
+      "M6R",
+      "M6S",
+      "M6T",
+      "M6V",
+      "M6W",
+      "M6X",
+      "M6Y",
+      "M6Z",
+      "M7A",
+      "M7B",
+      "M7C",
+      "M7E",
+      "M7G",
+      "M7H",
+      "M7J",
+      "M7K",
+      "M7L",
+      "M7M",
+      "M7N",
+      "M7P",
+      "M7R",
+      "M7S",
+      "M7T",
+      "M7V",
+      "M7W",
+      "M7X",
+      "M7Y",
+      "M7Z",
+      "M8A",
+      "M8B",
+      "M8C",
+      "M8E",
+      "M8G",
+      "M8H",
+      "M8J",
+      "M8K",
+      "M8L",
+      "M8M",
+      "M8N",
+      "M8P",
+      "M8R",
+      "M8S",
+      "M8T",
+      "M8V",
+      "M8W",
+      "M8X",
+      "M8Y",
+      "M8Z",
+      "M9A",
+      "M9B",
+      "M9C",
+      "M9E",
+      "M9G",
+      "M9H",
+      "M9J",
+      "M9K",
+      "M9L",
+      "M9M",
+      "M9N",
+      "M9P",
+      "M9R",
+      "M9S",
+      "M9T",
+      "M9V",
+      "M9W",
+      "M9X",
+      "M9Y",
+      "M9Z"
+    ],
+    "field_mappings": {
+      "property_id": "ADDRESS_POINT_ID",
+      "street_number": "ADDRESS_NUMBER",
+      "street_name": "LINEAR_NAME",
+      "street_suffix": "LINEAR_NAME_TYPE",
+      "street_direction": "LINEAR_NAME_DIR",
+      "city": "MUNICIPALITY_NAME",
+      "full_address": "ADDRESS_FULL"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Toronto has separate street name/suffix/direction fields"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true,
+        "_comment": "Toronto LO_NUM may contain suffixes like 100A"
+      },
+      "parse_unit_number": {
+        "enabled": true,
+        "source_field": "full_address",
+        "passthrough_unit": true,
+        "parse_hyphenated": false,
+        "_comment": "Extract unit numbers from ADDRESS_FULL field"
+      },
+      "normalize_fields": {
+        "enabled": true,
+        "_comment": "Normalizes suffix, direction (clears 'None' strings)"
+      },
+      "map_municipality": {
+        "enabled": true,
+        "preserve_original": true,
+        "_comment": "Maps pre-amalgamation names (Etobicoke, Scarborough, etc.) to Toronto"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "Toronto source lacks postal codes - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario",
+        "required_field_groups": [
+          [
+            "latitude",
+            "longitude"
+          ],
+          [
+            "street_number",
+            "full_address"
+          ]
+        ]
+      }
+    }
+  },
+  "ottawa": {
+    "municipality": "City of Ottawa",
+    "province": "ON",
+    "postal_prefixes": [
+      "K0A",
+      "K1A",
+      "K1B",
+      "K1C",
+      "K1E",
+      "K1G",
+      "K1H",
+      "K1J",
+      "K1K",
+      "K1L",
+      "K1M",
+      "K1N",
+      "K1P",
+      "K1R",
+      "K1S",
+      "K1T",
+      "K1V",
+      "K1W",
+      "K1X",
+      "K1Y",
+      "K1Z",
+      "K2A",
+      "K2B",
+      "K2C",
+      "K2E",
+      "K2G",
+      "K2H",
+      "K2J",
+      "K2K",
+      "K2L",
+      "K2M",
+      "K2P",
+      "K2R",
+      "K2S",
+      "K2T",
+      "K2V",
+      "K2W",
+      "K4A",
+      "K4B",
+      "K4C",
+      "K4K",
+      "K4M",
+      "K4P",
+      "K4R"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "ADDRNUM",
+      "street_name": "FULLNAME",
+      "full_address": "FULLADDR",
+      "civic_no_suffix": "QUALIFIER",
+      "unit_no": "UNITID"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "Ottawa has composite FULLNAME field like 'CHURCHILL AVE N'"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true,
+        "_comment": "Parse suffixes from ADDRNUM if present (e.g., 100A)"
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": true,
+        "default_city": "Ottawa",
+        "default_province": "ON",
+        "_comment": "Ottawa source lacks city field - apply default"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "Ottawa source lacks postal codes - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario",
+        "required_field_groups": [
+          [
+            "latitude",
+            "longitude"
+          ],
+          [
+            "street_number",
+            "full_address"
+          ]
+        ]
+      }
+    }
+  },
+  "haldimand_county": {
+    "municipality": "Haldimand County",
+    "province": "ON",
+    "postal_prefixes": [
+      "N0A",
+      "N3W"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "StreetNumber",
+      "street_name": "StreetName",
+      "full_address": "StreetAddress",
+      "unit_no": "StreetUnit",
+      "civic_no_suffix": "StreetQualifier",
+      "assessment_roll_number": "RollNumber",
+      "city": "ZONE_MUN"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "Haldimand has composite street names like 'CHURCH ST' - need to parse suffix"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true,
+        "_comment": "Parse suffixes from StreetNumber if present"
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": true,
+        "default_city": "Haldimand County",
+        "default_province": "ON",
+        "_comment": "ZONE_MUN contains township names (Jarvis, Rainham, etc.) - map to Haldimand County"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "Haldimand source lacks postal codes - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario",
+        "required_field_groups": [
+          [
+            "latitude",
+            "longitude"
+          ],
+          [
+            "street_number",
+            "full_address"
+          ]
+        ]
+      }
+    }
+  },
+  "london_addresses": {
+    "municipality": "City of London",
+    "province": "ON",
+    "postal_prefixes": [
+      "N5V",
+      "N5W",
+      "N5X",
+      "N5Y",
+      "N5Z",
+      "N6A",
+      "N6B",
+      "N6C",
+      "N6E",
+      "N6G",
+      "N6H",
+      "N6J",
+      "N6K",
+      "N6L",
+      "N6M",
+      "N6N",
+      "N6P"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "MunicipalNumber",
+      "street_name": "StreetName",
+      "street_suffix": "StreetType",
+      "street_direction": "StreetDirection",
+      "unit_no": "UnitNumber",
+      "full_address": "FullAddress",
+      "civic_no_suffix": "MunicipalNumberQualifier"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "London has well-structured separate fields for name/type/direction"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true,
+        "_comment": "Parse suffixes from MunicipalNumber if present"
+      },
+      "normalize_fields": {
+        "enabled": true,
+        "_comment": "Normalizes suffix, direction, clears whitespace-only values"
+      },
+      "map_municipality": {
+        "enabled": true,
+        "default_city": "London",
+        "default_province": "ON",
+        "_comment": "London source lacks explicit city field - apply default"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "London source lacks postal codes - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario",
+        "required_field_groups": [
+          [
+            "latitude",
+            "longitude"
+          ],
+          [
+            "street_number",
+            "full_address"
+          ]
+        ]
+      }
+    }
+  },
+  "middlesex_county_addresses": {
+    "_comment": "Combined from 14 municipality datasets. Field mappings need verification when server is accessible.",
+    "municipality": "Middlesex County",
+    "province": "ON",
+    "postal_prefixes": [
+      "N0L",
+      "N0M",
+      "N0N",
+      "N7G"
+    ],
+    "multi_municipality": true,
+    "municipality_field": "_source_municipality",
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "STREETNO",
+      "street_name": "STNAME",
+      "street_suffix": "STSUF",
+      "street_direction": "STDIR",
+      "full_address": "ADDRESS",
+      "unit_no": "UNIT",
+      "civic_no_suffix": "QUALIFIER"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "May need street name parsing depending on actual field format"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": true,
+        "source_field": "_source_municipality",
+        "preserve_original": true,
+        "_comment": "Uses _source_municipality field added by downloader to identify municipality"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "Middlesex source likely lacks postal codes - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario",
+        "required_field_groups": [
+          [
+            "latitude",
+            "longitude"
+          ],
+          [
+            "street_number",
+            "full_address"
+          ]
+        ]
+      }
+    }
+  },
+  "windsor_addresses": {
+    "municipality": "City of Windsor",
+    "province": "ON",
+    "postal_prefixes": [
+      "N8H",
+      "N8N",
+      "N8P",
+      "N8R",
+      "N8S",
+      "N8T",
+      "N8V",
+      "N8W",
+      "N8X",
+      "N8Y",
+      "N9A",
+      "N9B",
+      "N9C",
+      "N9E",
+      "N9G",
+      "N9H",
+      "N9J",
+      "N9K",
+      "N9V",
+      "N9Y"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "street_address",
+      "street_name": "street_name",
+      "street_suffix": "street_suffix",
+      "street_direction": "street_direction",
+      "unit_no": "unit_number",
+      "full_address": "Address",
+      "assessment_roll_number": "roll_number",
+      "ward": "Ward"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Windsor has well-structured separate fields for name/suffix/direction"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true,
+        "_comment": "Parse suffixes from street_address if present"
+      },
+      "normalize_fields": {
+        "enabled": true,
+        "_comment": "Normalizes suffix, direction, clears whitespace-only values"
+      },
+      "map_municipality": {
+        "enabled": true,
+        "default_city": "Windsor",
+        "default_province": "ON",
+        "_comment": "Windsor source lacks explicit city field - apply default"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "Windsor source lacks postal codes - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario",
+        "required_field_groups": [
+          [
+            "latitude",
+            "longitude"
+          ],
+          [
+            "street_number",
+            "full_address"
+          ]
+        ]
+      }
+    }
+  },
+  "norfolk_county_addresses": {
+    "municipality": "Norfolk County",
+    "province": "ON",
+    "postal_prefixes": [
+      "N0E",
+      "N0J",
+      "N3Y",
+      "N4S",
+      "N4G"
+    ],
+    "field_mappings": {
+      "property_id": "FID",
+      "street_number": "NUMBER_",
+      "street_name": "Bell_Name",
+      "street_suffix": "Bell_Suf",
+      "street_direction": "Bell_Dir",
+      "full_address": "CIVIC_ADD",
+      "unit_no": "UnitNumber",
+      "assessment_roll_number": "ROLLNUM"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Using Bell_Name/Bell_Suf/Bell_Dir fields which are properly separated"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true,
+        "_comment": "Parse suffixes from NUMBER_ if present"
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": true,
+        "default_city": "Norfolk County",
+        "default_province": "ON",
+        "_comment": "All records are Norfolk County - set municipality"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "Norfolk source lacks postal codes - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario",
+        "required_field_groups": [
+          [
+            "latitude",
+            "longitude"
+          ],
+          [
+            "street_number",
+            "full_address"
+          ]
+        ]
+      }
+    }
+  },
+  "leeds_grenville_addresses": {
+    "municipality": "United Counties of Leeds and Grenville",
+    "province": "ON",
+    "postal_prefixes": [
+      "K0E",
+      "K0G",
+      "K7G",
+      "K7H",
+      "K7K"
+    ],
+    "multi_municipality": true,
+    "municipality_field": "MUN",
+    "field_mappings": {
+      "property_id": "OBJECTID_1",
+      "street_number": "CIVICNUM",
+      "street_name": "STREET",
+      "street_suffix": null,
+      "street_direction": null,
+      "full_address": "ADDRESSAGOL",
+      "unit_no": "UNITNUM",
+      "city": "MUN",
+      "assessment_roll_number": "ARN"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "Leeds-Grenville has composite street names like 'WILLIAM STREET' - need to parse suffix"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true,
+        "_comment": "Parse suffixes from CIVICNUM if present"
+      },
+      "normalize_fields": {
+        "enabled": true,
+        "_comment": "Normalizes suffix, direction, clears whitespace-only values"
+      },
+      "map_municipality": {
+        "enabled": false,
+        "_comment": "MUN field contains municipality names (RIDEAU LAKES, BROCKVILLE, etc.)"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "Leeds-Grenville source lacks postal codes - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario",
+        "required_field_groups": [
+          [
+            "latitude",
+            "longitude"
+          ],
+          [
+            "street_number",
+            "full_address"
+          ]
+        ]
+      }
+    }
+  },
+  "essex_county_addresses": {
+    "municipality": "Tecumseh",
+    "province": "ON",
+    "postal_prefixes": [
+      "N8N",
+      "N0R"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID_1",
+      "street_number": "CIVICNO",
+      "street_name": "CIVICADD",
+      "street_suffix": "SUFFIX",
+      "street_direction": "DIRECTION",
+      "full_address": "AddressComplete",
+      "city": "CITY"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "STREETNAME contains composite names like 'ST ALPHONSE AVE' - need to parse suffix"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true,
+        "_comment": "Parse suffixes from CIVICNO if present"
+      },
+      "normalize_fields": {
+        "enabled": true,
+        "_comment": "Normalizes suffix, direction, clears whitespace-only values"
+      },
+      "map_municipality": {
+        "enabled": false,
+        "_comment": "CITY field already contains 'TECUMSEH'"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "Essex source lacks postal codes - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario",
+        "required_field_groups": [
+          [
+            "latitude",
+            "longitude"
+          ],
+          [
+            "street_number",
+            "full_address"
+          ]
+        ]
+      }
+    }
+  },
+  "brantford_addresses": {
+    "municipality": "City of Brantford",
+    "province": "ON",
+    "postal_prefixes": [
+      "N3P",
+      "N3R",
+      "N3S",
+      "N3T",
+      "N3V"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "STREETNUM",
+      "civic_no_suffix": "STNUMSUFF",
+      "street_name": "STREETNAME",
+      "street_suffix": "STREETTYPE",
+      "full_address": "FULLADDRESS",
+      "postal_code": "POSTALCODE"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Brantford has well-structured separate fields for name/type"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": false,
+        "_comment": "STREETNUM carries the suffix attached (68A) AND STNUMSUFF supplies it separately; passthrough_suffix must be false or the parser skips splitting STREETNUM whenever STNUMSUFF is set, leaving street_number unsplit (backfilled 2026-07)"
+      },
+      "normalize_fields": {
+        "enabled": true,
+        "_comment": "Normalizes suffix, clears whitespace-only values"
+      },
+      "map_municipality": {
+        "enabled": true,
+        "default_city": "Brantford",
+        "default_province": "ON",
+        "_comment": "Brantford source lacks city field - apply default"
+      },
+      "enrich_fsa": {
+        "enabled": false,
+        "_comment": "Brantford has postal codes in source data"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario",
+        "required_field_groups": [
+          [
+            "latitude",
+            "longitude"
+          ],
+          [
+            "street_number",
+            "full_address"
+          ]
+        ]
+      }
+    }
+  },
+  "burlington_addresses": {
+    "municipality": "City of Burlington",
+    "province": "ON",
+    "postal_prefixes": [
+      "L7L",
+      "L7M",
+      "L7N",
+      "L7P",
+      "L7R",
+      "L7S",
+      "L7T"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "HOUSENUM",
+      "street_name": "STREET",
+      "street_suffix": "STRTYPE",
+      "street_direction": "STRDIR",
+      "unit_no": "UNIT",
+      "full_address": "ADDRESS",
+      "city": "CITY",
+      "latitude": "LATITUDE",
+      "longitude": "LONGITUDE"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Burlington has well-structured separate fields"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true,
+        "_comment": "Parse suffixes from HOUSENUM if present"
+      },
+      "normalize_fields": {
+        "enabled": true,
+        "_comment": "Normalizes suffix, direction, clears whitespace-only values"
+      },
+      "map_municipality": {
+        "enabled": false,
+        "_comment": "CITY field already contains 'Burlington'"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "Burlington source lacks postal codes - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario",
+        "required_field_groups": [
+          [
+            "latitude",
+            "longitude"
+          ],
+          [
+            "street_number",
+            "full_address"
+          ]
+        ]
+      }
+    }
+  },
+  "muskoka_addresses": {
+    "municipality": "District Municipality of Muskoka",
+    "province": "ON",
+    "postal_prefixes": [
+      "P0B",
+      "P0C",
+      "P0E",
+      "P1H",
+      "P1L",
+      "P1P"
+    ],
+    "multi_municipality": true,
+    "municipality_field": "Municipality",
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "StreetNumber",
+      "civic_no_suffix": "StreetQual",
+      "street_name": "StreetName",
+      "unit_no": "StreetUnit",
+      "full_address": "Location",
+      "city": "Municipality"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "Muskoka has composite street names like 'PINERIDGE GT' - need to parse suffix"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true,
+        "_comment": "Parse suffixes from StreetNumber if present"
+      },
+      "normalize_fields": {
+        "enabled": true,
+        "_comment": "Normalizes suffix, direction, clears whitespace-only values"
+      },
+      "map_municipality": {
+        "enabled": false,
+        "_comment": "Municipality field contains township names (Town of Gravenhurst, etc.)"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "Muskoka source lacks postal codes - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario",
+        "required_field_groups": [
+          [
+            "latitude",
+            "longitude"
+          ],
+          [
+            "street_number",
+            "full_address"
+          ]
+        ]
+      }
+    }
+  },
+  "oakville_addresses": {
+    "municipality": "Town of Oakville",
+    "province": "ON",
+    "postal_prefixes": [
+      "L6H",
+      "L6J",
+      "L6K",
+      "L6L",
+      "L6M"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "STREET_NUM",
+      "civic_no_suffix": "SUFFIX",
+      "street_name": "STREET_NAME",
+      "street_suffix": "STREET_TYPE",
+      "street_direction": "STREET_DIR",
+      "unit_no": "UNIT",
+      "full_address": "ADDRESS",
+      "postal_code": "POSTAL",
+      "city": "CITY"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Oakville has well-structured separate fields for name/type/direction"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true,
+        "_comment": "Parse suffixes from STREET_NUM if present"
+      },
+      "normalize_fields": {
+        "enabled": true,
+        "_comment": "Normalizes suffix, direction, clears whitespace-only values"
+      },
+      "map_municipality": {
+        "enabled": true,
+        "default_city": "Oakville",
+        "default_province": "ON",
+        "_comment": "CITY field may be empty - apply default"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "Oakville POSTAL field may be null - spatial FSA lookup as fallback"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario",
+        "required_field_groups": [
+          [
+            "latitude",
+            "longitude"
+          ],
+          [
+            "street_number",
+            "full_address"
+          ]
+        ]
+      }
+    }
+  },
+  "milton_addresses": {
+    "municipality": "Town of Milton",
+    "province": "ON",
+    "postal_prefixes": [
+      "L9E",
+      "L9T"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "ADDRESS_NUM",
+      "street_name": "GEOSTNAME",
+      "street_suffix": "STREET_TYPE",
+      "street_direction": "ST_DIR_SUFFIX",
+      "unit_no": "UNIT_NUMBER",
+      "full_address": "DISPLAY_NAME"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Milton has separate fields for name/type/direction"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true,
+        "_comment": "Parse suffixes from ADDRESS_NUM if present"
+      },
+      "normalize_fields": {
+        "enabled": true,
+        "_comment": "Normalizes suffix, direction, clears whitespace-only values"
+      },
+      "map_municipality": {
+        "enabled": true,
+        "default_city": "Milton",
+        "default_province": "ON",
+        "_comment": "Milton source lacks city field - apply default"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "Milton source lacks postal codes - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario",
+        "required_field_groups": [
+          [
+            "latitude",
+            "longitude"
+          ],
+          [
+            "street_number",
+            "full_address"
+          ]
+        ]
+      }
+    }
+  },
+  "barrie_addresses": {
+    "source_name": "barrie_addresses",
+    "municipality": "Barrie",
+    "province": "ON",
+    "postal_prefixes": [],
+    "field_mappings": {
+      "latitude": "Latitude",
+      "longitude": "Longitude",
+      "street_number": "ADDRNUMBER",
+      "full_address": "FULLADDR",
+      "property_id": "PARCELID",
+      "street_name": "SSTRNAME",
+      "street_suffix": "SSTRSUFF",
+      "street_direction": "SSTRDIR",
+      "unit_no": "UNITNUMBER"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": true,
+        "default_city": "Barrie"
+      },
+      "enrich_fsa": {
+        "enabled": true
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "cornwall": {
+    "source_name": "cornwall",
+    "municipality": "Cornwall",
+    "province": "ON",
+    "postal_prefixes": [
+      "K0C",
+      "K6H",
+      "K6J",
+      "K6K"
+    ],
+    "field_mappings": {
+      "street_number": "ST_NUMBER",
+      "full_address": "ADDRESS",
+      "property_id": "OBJECTID",
+      "street_name": "STREET",
+      "street_suffix": "SUFFIX",
+      "city": "CITY",
+      "postal_code": "POSTAL",
+      "province": "PROVINCE",
+      "street_direction": "DIRECTION",
+      "unit_no": "UNIT"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false
+      },
+      "enrich_fsa": {
+        "enabled": false
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "kawartha_lakes_addresses": {
+    "source_name": "kawartha_lakes_addresses",
+    "municipality": "Kawartha Lakes",
+    "province": "ON",
+    "postal_prefixes": [],
+    "field_mappings": {
+      "street_number": "StreetNumber",
+      "civic_no_suffix": "StreetNumberSuffix",
+      "full_address": "StreetAddress",
+      "property_id": "OBJECTID",
+      "street_name": "StreetNameBody",
+      "street_suffix": "StreetTypeSuffix",
+      "city": "SingleLowerTier",
+      "street_direction": "StreetDirectionAbrv",
+      "unit_no": "UnitNumber",
+      "latitude": "Ylat",
+      "longitude": "Xlong"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false
+      },
+      "enrich_fsa": {
+        "enabled": true
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "hamilton_addresses": {
+    "source_name": "hamilton_addresses",
+    "municipality": "Hamilton",
+    "province": "ON",
+    "postal_prefixes": [
+      "L0R",
+      "L8B",
+      "L8E",
+      "L8G",
+      "L8H",
+      "L8J",
+      "L8K",
+      "L8L",
+      "L8M",
+      "L8N",
+      "L8P",
+      "L8S",
+      "L8T",
+      "L8V",
+      "L8W",
+      "L9A",
+      "L9B",
+      "L9C",
+      "L9G",
+      "L9H",
+      "L9K",
+      "N0B"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "NUMBER_COMPLETE",
+      "unit_no": "UNIT_NUMBER_COMPLETE",
+      "street_name": "STREET_NAME",
+      "street_suffix": "STREET_SUFFIX_TYPE",
+      "street_direction": "STREET_SUFFIX_DIRECTION",
+      "full_address": "FULL_STREET_NAME",
+      "city": "MUNICIPALITY",
+      "postal_code": "POSTAL_CODE",
+      "province": "PROVINCE"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": true,
+        "_comment": "Map COMMUNITY values to canonical city names"
+      },
+      "enrich_fsa": {
+        "enabled": false
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "kingston_addresses": {
+    "source_name": "kingston_addresses",
+    "municipality": "Kingston",
+    "province": "ON",
+    "postal_prefixes": [
+      "K0H",
+      "K7G",
+      "K7K",
+      "K7L",
+      "K7M",
+      "K7P"
+    ],
+    "field_mappings": {
+      "street_number": "ADDRESS_NUMBER",
+      "civic_no_suffix": "ADDRESS_NUMBER_SUFFIX",
+      "full_address": "FULL_ADDRESS",
+      "property_id": "OBJECTID",
+      "street_name": "STREET_BODY_NAME",
+      "street_suffix": "STREET_TYPE_SUFFIX",
+      "city": "MUNICIPALITY",
+      "postal_code": "POSTAL_CODE",
+      "street_direction": "DIRECTION_SUFFIX",
+      "unit_no": "UNIT"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false
+      },
+      "enrich_fsa": {
+        "enabled": false
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "peterborough": {
+    "source_name": "peterborough",
+    "municipality": "Peterborough",
+    "province": "ON",
+    "postal_prefixes": [
+      "K9H",
+      "K9J",
+      "K9K",
+      "K9L"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "ADDNUM",
+      "street_name": "STREETNAME",
+      "street_suffix": "STREETTYPE",
+      "street_direction": "DIRECTION",
+      "unit_no": "BLDG_UNIT",
+      "full_address": "ADDRESS",
+      "city": "MUNICIPALITY"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Peterborough has well-structured separate fields"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false,
+        "_comment": "MUNICIPALITY field already contains 'Peterborough'"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "parry_sound_district_addresses": {
+    "source_name": "parry_sound_district_addresses",
+    "municipality": "Parry Sound District",
+    "province": "ON",
+    "postal_prefixes": [
+      "P0A",
+      "P0C",
+      "P0G",
+      "P2A"
+    ],
+    "multi_municipality": true,
+    "municipality_field": "municipality",
+    "field_mappings": {
+      "property_id": "parcelid",
+      "street_number": "add_num",
+      "civic_no_suffix": "add_num_suf",
+      "street_name": "name_body",
+      "street_direction": "dir_suffix",
+      "unit_no": "unitnumber",
+      "full_address": "full_add",
+      "city": "municipality"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "name_body contains composite names like 'Nobel Road' - need to parse suffix"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false,
+        "_comment": "municipality field contains values like 'Municipality of McDougall'"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "postalcode field exists but often null - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "dufferin_county_addresses": {
+    "source_name": "dufferin_county_addresses",
+    "municipality": "Dufferin County",
+    "province": "ON",
+    "postal_prefixes": [
+      "L9V",
+      "L9W",
+      "N0C"
+    ],
+    "multi_municipality": true,
+    "municipality_field": "TOWN",
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "CIVIC_NO",
+      "street_name": "STREETNAME",
+      "street_suffix": "ST_TYPE",
+      "unit_no": "UNIT",
+      "full_address": "FULLADDY",
+      "city": "TOWN"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "STREETNAME contains composite names like ZINA STREET"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false,
+        "_comment": "CITY field contains municipality names"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "durham_region_addresses": {
+    "source_name": "durham_region_addresses",
+    "municipality": "Durham Region",
+    "province": "ON",
+    "postal_prefixes": [
+      "L1B",
+      "L1C",
+      "L1E",
+      "L1G",
+      "L1H",
+      "L1J",
+      "L1K",
+      "L1L",
+      "L1M",
+      "L1N",
+      "L1P",
+      "L1R",
+      "L1S",
+      "L1T",
+      "L1V",
+      "L1W",
+      "L1X",
+      "L1Y",
+      "L1Z"
+    ],
+    "multi_municipality": true,
+    "municipality_field": "MUNICIPALITY",
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "CIVIC_NUM",
+      "civic_no_suffix": "CIVIC_SFX",
+      "street_name": "ROAD_NAME",
+      "street_suffix": "ROAD_TYPE",
+      "street_direction": "DIR_SHORT",
+      "unit_no": "UNIT_RANGE",
+      "city": "MUNICIPALITY",
+      "postal_code": "POSTAL_CODE"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Durham has separate fields"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false
+      },
+      "enrich_fsa": {
+        "enabled": false,
+        "_comment": "Has POSTAL_CODE field"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "frontenac_county_addresses": {
+    "source_name": "frontenac_county_addresses",
+    "municipality": "Frontenac County",
+    "province": "ON",
+    "postal_prefixes": [
+      "K0H"
+    ],
+    "multi_municipality": true,
+    "municipality_field": "Municipality",
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "StreetNumber",
+      "civic_no_suffix": "Qualifier",
+      "street_name": "StreetName",
+      "unit_no": "UnitNumber",
+      "full_address": "Location",
+      "city": "Municipality"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "StreetName contains composite like HOWE ISLAND DRIVE"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "greater_sudbury_addresses": {
+    "source_name": "greater_sudbury_addresses",
+    "municipality": "Greater Sudbury",
+    "province": "ON",
+    "postal_prefixes": [
+      "P0M",
+      "P3A",
+      "P3B",
+      "P3C",
+      "P3E",
+      "P3G",
+      "P3L",
+      "P3N",
+      "P3P",
+      "P3Y"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "ADDRESSNUMBER",
+      "civic_no_suffix": "ADDRESSNUMBERSUFFIX",
+      "street_name": "BASESTREETNAME",
+      "street_suffix": "STREETTYPE",
+      "full_address": "FULLADDRESSTEXT",
+      "city": "COMMUNITY"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "FULLSTREETNAME contains composite names"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true,
+        "source_field": "full_address"
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": true,
+        "default_city": "Greater Sudbury",
+        "_comment": "COMMUNITY has neighborhood names"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "hastings_county_addresses": {
+    "source_name": "hastings_county_addresses",
+    "municipality": "Hastings County",
+    "province": "ON",
+    "postal_prefixes": [
+      "K0K",
+      "K0L"
+    ],
+    "multi_municipality": true,
+    "municipality_field": "MUNICIPALI",
+    "field_mappings": {
+      "property_id": "FID",
+      "street_number": "House_No",
+      "civic_no_suffix": "House_Suf",
+      "street_name": "Rd_Name",
+      "street_suffix": "Rd_Suf",
+      "street_direction": "Rd_Dir",
+      "unit_no": "Unit",
+      "full_address": "Full_Add",
+      "city": "MUNICIPALI",
+      "latitude": "LAT",
+      "longitude": "LONG"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "Rd_Name may contain composite names"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "huron_county_addresses": {
+    "source_name": "huron_county_addresses",
+    "municipality": "Huron County",
+    "province": "ON",
+    "postal_prefixes": [
+      "N0G",
+      "N0M",
+      "N7A"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "StreetNumber",
+      "street_name": "St_Name",
+      "street_suffix": "St_PosTyp",
+      "street_direction": "St_PosDir",
+      "unit_no": "Unit",
+      "full_address": "FullAddress"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "St_Name and St_PosTyp are already separated"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": true,
+        "default_city": "Huron County",
+        "_comment": "No separate city field"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "niagara_region_addresses": {
+    "source_name": "niagara_region_addresses",
+    "municipality": "Niagara Region",
+    "province": "ON",
+    "postal_prefixes": [
+      "L0R",
+      "L0S",
+      "L2A",
+      "L2E",
+      "L2G",
+      "L2H",
+      "L2J",
+      "L2M",
+      "L2N",
+      "L2P",
+      "L2R",
+      "L2S",
+      "L2T",
+      "L2V",
+      "L2W",
+      "L3B",
+      "L3C",
+      "L3K",
+      "L3M"
+    ],
+    "multi_municipality": true,
+    "municipality_field": "Municipality",
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "StreetNo",
+      "civic_no_suffix": "Qualifier",
+      "street_name": "StreetName",
+      "street_suffix": "StreetType",
+      "street_direction": "StreetDir",
+      "unit_no": "Unit",
+      "city": "Municipality"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Niagara has separate fields"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "peel_region_addresses": {
+    "source_name": "peel_region_addresses",
+    "municipality": "Peel Region",
+    "province": "ON",
+    "postal_prefixes": [
+      "L4T",
+      "L4V",
+      "L4W",
+      "L4X",
+      "L4Y",
+      "L4Z",
+      "L5A",
+      "L5B",
+      "L5C",
+      "L5E",
+      "L5G",
+      "L5H",
+      "L5J",
+      "L5K",
+      "L5L",
+      "L5M",
+      "L5N",
+      "L5P",
+      "L5R",
+      "L5S",
+      "L5T",
+      "L5V",
+      "L5W",
+      "L6P",
+      "L6R",
+      "L6S",
+      "L6T",
+      "L6V",
+      "L6W",
+      "L6X",
+      "L6Y",
+      "L6Z",
+      "L7A",
+      "L7C",
+      "L7E",
+      "L7G"
+    ],
+    "multi_municipality": true,
+    "municipality_field": "MUNICIPALITY",
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "STREETNUM",
+      "street_name": "STREETNAME",
+      "street_suffix": "STREETTYPE",
+      "street_direction": "STREETDIRECTION",
+      "unit_no": "UNIT_IDENTIFIER",
+      "city": "MUNICIPALITY"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "STREETNAME may contain composite names when STREETTYPE is null"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "sarnia_addresses": {
+    "source_name": "sarnia_addresses",
+    "municipality": "Sarnia",
+    "province": "ON",
+    "postal_prefixes": [
+      "N7S",
+      "N7T",
+      "N7V",
+      "N7W",
+      "N7X"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID_1",
+      "street_number": "STNUM",
+      "street_name": "STNAME",
+      "street_suffix": "STTYPE",
+      "street_direction": "STDIR",
+      "full_address": "ADDRESS",
+      "city": "CITY"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Sarnia has separate fields"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "thunder_bay_addresses": {
+    "source_name": "thunder_bay_addresses",
+    "municipality": "Thunder Bay",
+    "province": "ON",
+    "postal_prefixes": [
+      "P7A",
+      "P7B",
+      "P7C",
+      "P7E",
+      "P7G",
+      "P7J",
+      "P7K"
+    ],
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "ADDRESS_NUMBER",
+      "civic_no_suffix": "ADDRESS_QUALIFIER",
+      "street_name": "STREET",
+      "street_suffix": "ROWTYPE",
+      "full_address": "COMPLETE",
+      "city": "CITY",
+      "province": "PROVINCE",
+      "pin": "PCL_PIN"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Thunder Bay has separate fields"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "waterloo_region_addresses": {
+    "source_name": "waterloo_region_addresses",
+    "municipality": "Waterloo Region",
+    "province": "ON",
+    "postal_prefixes": [
+      "N0B",
+      "N1R",
+      "N2A",
+      "N2B",
+      "N2C",
+      "N2E",
+      "N2G",
+      "N2H",
+      "N2J",
+      "N2K",
+      "N2L",
+      "N2M",
+      "N2N",
+      "N2P",
+      "N2R",
+      "N2T",
+      "N2V",
+      "N3A",
+      "N3B",
+      "N3C",
+      "N3E",
+      "N3H"
+    ],
+    "multi_municipality": true,
+    "municipality_field": "Municipality",
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "AddressNumber",
+      "street_name": "FullStreetName",
+      "unit_no": "UnitNumber",
+      "full_address": "FullAddress",
+      "city": "Municipality"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "FullStreetName contains composite names"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "york_region_addresses": {
+    "source_name": "york_region_addresses",
+    "municipality": "York Region",
+    "province": "ON",
+    "postal_prefixes": [
+      "L0G",
+      "L0J",
+      "L3P",
+      "L3R",
+      "L3S",
+      "L3T",
+      "L3X",
+      "L3Y",
+      "L3Z",
+      "L4A",
+      "L4B",
+      "L4C",
+      "L4E",
+      "L4G",
+      "L4H",
+      "L4J",
+      "L4K",
+      "L4L",
+      "L4S",
+      "L6A",
+      "L6B",
+      "L6C",
+      "L6E",
+      "L6G",
+      "L7B",
+      "L9N",
+      "L9Y"
+    ],
+    "multi_municipality": true,
+    "municipality_field": "MUNICIPALITY",
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "ADDRESS_NUMBER",
+      "civic_no_suffix": "ADD_NUM_SUFFIX",
+      "street_name": "STREET_NAME",
+      "street_suffix": "STREET_TYPE",
+      "street_direction": "SUFFIX_DIRECTION",
+      "unit_no": "SUITE_NUMBER",
+      "full_address": "FULL_CIVIC_ADDR",
+      "city": "MUNICIPALITY",
+      "postal_code": "MAIL_POSTAL_CODE"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "York has separate STREET_NAME and STREET_TYPE fields"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false
+      },
+      "enrich_fsa": {
+        "enabled": false,
+        "_comment": "Has MAIL_POSTAL_CODE field"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "huron_county": {
+    "source_name": "huron_county",
+    "municipality": "Huron County",
+    "province": "ON",
+    "postal_prefixes": [],
+    "multi_municipality": true,
+    "municipality_field": "Mun",
+    "field_mappings": {
+      "property_id": "HuronID",
+      "street_number": "StreetNumber",
+      "civic_no_suffix": "AddNum_Suf",
+      "street_name": "St_Name",
+      "street_suffix": "St_PosTyp",
+      "street_direction": "St_PosDir",
+      "unit_no": "Unit",
+      "full_address": "FullAddress",
+      "city": "Mun"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Huron has separate St_Name and St_PosTyp fields"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": false,
+        "_comment": "StreetNumber carries the suffix attached (68A) AND AddNum_Suf supplies it separately; passthrough_suffix must be false or the parser skips splitting StreetNumber whenever AddNum_Suf is set, leaving street_number unsplit (backfilled 2026-07)"
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": true,
+        "_comment": "Mun contains short codes like SHu, need mapping to full names"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source data"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "sarnia": {
+    "source_name": "sarnia",
+    "municipality": "City of Sarnia",
+    "province": "ON",
+    "postal_prefixes": [],
+    "field_mappings": {
+      "property_id": "GlobalID",
+      "street_number": "STNUM",
+      "street_name": "STNAME",
+      "street_suffix": "STTYPE",
+      "street_direction": "STDIR",
+      "full_address": "ADDRESS",
+      "city": "CITY"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Sarnia has separate STNAME and STTYPE fields"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false,
+        "_comment": "CITY field already contains proper name 'Sarnia'"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source data"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "thunder_bay": {
+    "source_name": "thunder_bay",
+    "municipality": "City of Thunder Bay",
+    "province": "ON",
+    "postal_prefixes": [],
+    "field_mappings": {
+      "property_id": "GLOBALID",
+      "street_number": "ADDRESS_NUMBER",
+      "street_name": "STREET",
+      "street_suffix": "ROWTYPE",
+      "full_address": "COMPLETE",
+      "city": "CITY",
+      "province": "PROVINCE",
+      "pin": "PCL_PIN"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Thunder Bay has separate STREET and ROWTYPE fields"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false,
+        "_comment": "CITY field already contains 'THUNDER BAY'"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source data"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "elgin_county_addresses": {
+    "source_name": "elgin_county_addresses",
+    "municipality": "Elgin County",
+    "province": "ON",
+    "postal_prefixes": [],
+    "multi_municipality": true,
+    "municipality_field": "MUNI",
+    "field_mappings": {
+      "property_id": "GlobalID",
+      "street_number": "StrNum2",
+      "street_name": "StrFULL",
+      "full_address": "StrNUM_StrFULL",
+      "unit_no": "StrUNIT",
+      "city": "MUNI",
+      "assessment_roll_number": "ARN",
+      "latitude": "y",
+      "longitude": "x"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "StrFULL contains composite names like 'SOUTHMINSTER BOURNE'"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false,
+        "_comment": "MUNI contains proper names like 'Middlesex Centre'"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source data"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "frontenac_county": {
+    "source_name": "frontenac_county",
+    "municipality": "Frontenac County",
+    "province": "ON",
+    "postal_prefixes": [],
+    "multi_municipality": true,
+    "municipality_field": "Municipality",
+    "field_mappings": {
+      "property_id": "GlobalID",
+      "street_number": "StreetNumber",
+      "street_name": "StreetName",
+      "full_address": "Location",
+      "unit_no": "UnitNumber",
+      "city": "Municipality"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "StreetName contains composite names like 'HOWE ISLAND DRIVE'"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false,
+        "_comment": "Municipality field contains proper names"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source data"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "greater_sudbury": {
+    "source_name": "greater_sudbury",
+    "municipality": "City of Greater Sudbury",
+    "province": "ON",
+    "postal_prefixes": [],
+    "field_mappings": {
+      "property_id": "GLOBALID",
+      "street_number": "ADDRESSNUMBER",
+      "civic_no_suffix": "ADDRESSNUMBERSUFFIX",
+      "street_name": "BASESTREETNAME",
+      "street_suffix": "STREETTYPE",
+      "street_direction": "STREETSUFFIX",
+      "full_address": "FULLADDRESSTEXT",
+      "unit_no": "UNIT_OR_AMENITY",
+      "city": "COMMUNITY"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": false,
+        "_comment": "Greater Sudbury has separate BASESTREETNAME and STREETTYPE fields"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false,
+        "_comment": "COMMUNITY field contains proper names like 'Sudbury'"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source data"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "hastings_county": {
+    "source_name": "hastings_county",
+    "municipality": "Hastings County",
+    "province": "ON",
+    "postal_prefixes": [],
+    "multi_municipality": true,
+    "municipality_field": "MUNICIPALI",
+    "field_mappings": {
+      "property_id": "FID",
+      "street_number": "House_No",
+      "civic_no_suffix": "House_Suf",
+      "street_name": "Rd_Name",
+      "street_suffix": "Rd_Suf",
+      "street_direction": "Rd_Dir",
+      "full_address": "Full_Add",
+      "unit_no": "Unit",
+      "city": "MUNICIPALI",
+      "latitude": "LAT",
+      "longitude": "LONG"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "Rd_Name contains composite names like 'HIGHWAY 28', Rd_Suf often empty"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": true,
+        "_comment": "MUNICIPALI contains short codes like 'FARA' that need mapping"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "No postal code in source data"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  },
+  "archipelago_parry_sound_addresses": {
+    "source_name": "archipelago_parry_sound_addresses",
+    "municipality": "Parry Sound District",
+    "province": "ON",
+    "postal_prefixes": ["P0A", "P0C", "P0G", "P2A"],
+    "multi_municipality": true,
+    "municipality_field": "municipality",
+    "field_mappings": {
+      "property_id": "parcelid",
+      "street_number": "add_num",
+      "civic_no_suffix": "add_num_suf",
+      "street_name": "name_body",
+      "street_direction": "dir_suffix",
+      "unit_no": "unitnumber",
+      "full_address": "full_add",
+      "city": "municipality"
+    },
+    "transforms": {
+      "parse_street_name": {
+        "enabled": true,
+        "source_field": "street_name",
+        "preserve_original": true,
+        "_comment": "name_body contains composite names like 'Nobel Road' - need to parse suffix"
+      },
+      "parse_civic_number": {
+        "enabled": true,
+        "passthrough_suffix": true
+      },
+      "normalize_fields": {
+        "enabled": true
+      },
+      "map_municipality": {
+        "enabled": false,
+        "_comment": "municipality field contains values like 'Municipality of McDougall'"
+      },
+      "enrich_fsa": {
+        "enabled": true,
+        "_comment": "postalcode field exists but often null - spatial FSA lookup needed"
+      },
+      "validate": {
+        "enabled": true,
+        "strict_bounds": "ontario"
+      }
+    }
+  }
+}
