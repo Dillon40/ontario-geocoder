@@ -15,6 +15,7 @@ from . import database, cache
 from .geographic_validator import get_validator
 from .address_parser import parse_address, generate_address_hash, build_full_address
 from .address_formatter import format_property_address
+from .confidence import finalize_confidence
 from .layered_matcher import match_municipal_layered, match_nar_layered
 
 
@@ -109,11 +110,9 @@ async def match_municipal_data(address_components: Dict[str, Any]) -> Optional[D
     result = await match_municipal_layered(search_components)
 
     if result:
-        # Apply geographic confidence adjustment if available
-        if 'geography_confidence_adjustment' in enriched_components:
-            result['confidence'] = min(0.99, result['confidence'] + enriched_components['geography_confidence_adjustment'])
-            if enriched_components.get('geography_notes'):
-                result['geography_notes'] = enriched_components['geography_notes']
+        finalize_confidence(result, enriched_components.get('geography_confidence_adjustment', 0.0))
+        if enriched_components.get('geography_notes'):
+            result['geography_notes'] = enriched_components['geography_notes']
 
     return result
 
@@ -141,11 +140,9 @@ async def match_nar_data(address_components: Dict[str, Any]) -> Optional[Dict[st
     result = await match_nar_layered(search_components)
 
     if result:
-        # Apply geographic confidence adjustment if available
-        if 'geography_confidence_adjustment' in enriched_components:
-            result['confidence'] = min(0.99, result['confidence'] + enriched_components['geography_confidence_adjustment'])
-            if enriched_components.get('geography_notes'):
-                result['geography_notes'] = enriched_components['geography_notes']
+        finalize_confidence(result, enriched_components.get('geography_confidence_adjustment', 0.0))
+        if enriched_components.get('geography_notes'):
+            result['geography_notes'] = enriched_components['geography_notes']
 
     return result
 
@@ -157,14 +154,11 @@ def calculate_enhanced_confidence(result: Dict[str, Any], address_components: Di
     for field in ('pin', 'gpid'):
         if result.get(field) is not None:
             result[field] = str(result[field])
-    base_confidence = result.get('confidence', 0.5)
-
-    # Add confidence breakdown
-    result['confidence_factors'] = {
-        'base_confidence': base_confidence,
-        'tier': result['match_tier'],
-        'match_method': result['match_method']
-    }
+    # Municipal/NAR wrappers already finalized the score. Preserve their true
+    # pre-geography base instead of overwriting it with the adjusted final score.
+    # PIN lookups enter here without factors and receive their tier-1 breakdown.
+    if 'confidence_factors' not in result:
+        finalize_confidence(result)
 
     return result
 
@@ -204,8 +198,10 @@ async def geocode(address_input: Any) -> Dict[str, Any]:
         address_hash = generate_address_hash(address_components)
 
         # Check cache
-        # Ignore old null labels and unit-ambiguous cached matches.
-        cache_key = f'geocode:v4:{address_hash}'
+        # v5 includes composed labels, tier-specific scoring and corrected unit
+        # identity handling. Ignore old null-label/high-score/wrong-unit results.
+        # Keep auth/rate-limit namespaces intact.
+        cache_key = f'geocode:v5:{address_hash}'
         cached = await cache.get(cache_key)
 
         if cached:

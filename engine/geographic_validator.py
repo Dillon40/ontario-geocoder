@@ -151,7 +151,13 @@ class GeographicValidator:
                 # Valid combination - boost confidence
                 return True, self.CONFIDENCE_BOOST_ALIGNED
             else:
-                # Conflict detected - penalize confidence
+                # No reference coverage for this FSA is UNKNOWN, not a conflict.
+                # Do not cache this absence: a subsequent import may populate it.
+                covered = await conn.fetchval(
+                    'SELECT EXISTS(SELECT 1 FROM fsa_municipality_mappings WHERE fsa_code = $1)',
+                    fsa_code)
+                if not covered:
+                    return True, 0.0
                 return False, self.CONFIDENCE_PENALTY_CONFLICT
 
     async def get_municipalities_for_fsa(self, fsa_code: str) -> List[Dict[str, Any]]:

@@ -34,6 +34,19 @@ async def test_direction_and_deleted_constraints_before_limit(table,column):
         assert set(params[0]) >= {'WEST','W'}
         assert sql.index('is_deleted') < sql.index('LIMIT')
 
+@pytest.mark.asyncio
+async def test_missing_geography_is_not_conflict():
+    from engine.geographic_validator import GeographicValidator
+    validator = GeographicValidator()
+    validator.normalize_municipality_name = AsyncMock(return_value='GUELPH')
+    conn = AsyncMock()
+    conn.fetchval.side_effect = [False, False]
+    pool = MagicMock()
+    pool.acquire.return_value.__aenter__ = AsyncMock(return_value=conn)
+    with patch('engine.geographic_validator.database.get_pool', return_value=pool):
+        assert await validator.validate_fsa_municipality('N1H','Guelph') == (True,0.0)
+
+
 def test_bigint_identifiers_normalized_before_response_and_cache():
     from engine.geocoder import calculate_enhanced_confidence
     from api.models import GeocodeResponse
@@ -234,6 +247,14 @@ async def test_downloader_requires_confirmed_source_even_by_explicit_key():
     assert await get_data_sources(conn,source_key='middlesex_county_addresses')==[]
     sql,key,status=conn.fetch.call_args.args
     assert 'status = $2' in sql and status=='confirmed'
+
+@pytest.mark.asyncio
+async def test_old_municipal_response_cache_namespace_is_not_read():
+    from engine import geocoder
+    with patch.object(geocoder.cache,'get',AsyncMock(return_value={'success':True,'source':'nar_match'})) as cache_get:
+        await geocoder.geocode({'street_number':'21605','street_name':'Adelaide','city':'Middlesex Centre'})
+    assert cache_get.call_args.args[0].startswith('geocode:v5:')
+
 
 def test_exclusion_migration_preserves_nar_and_audit_rows():
     from database.run_migrations import parse_migrations

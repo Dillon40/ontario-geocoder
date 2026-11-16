@@ -5,6 +5,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from engine.address_formatter import format_property_address
+from engine.confidence import (
+    MUNICIPAL_LAYER_CONFIDENCE, NAR_LAYER_CONFIDENCE,
+    TIER_CONFIDENCE_CEILINGS, finalize_confidence,
+)
 from engine.layered_matcher import (
     MatchMetadata, LayeredNARMatcher, build_result_from_properties_row,
     build_result_from_nar_row,
@@ -109,3 +113,77 @@ async def test_pin_lookup_uses_same_label_fallback():
         result = await geocoder.lookup_by_pin({'pin': '123'})
     assert result['matched_address'] == '681 Hall Road, Hamilton, ON L0R 1C0'
     assert result['match_tier'] == 1
+
+
+@pytest.mark.parametrize('layer', range(7))
+@pytest.mark.parametrize('adjustment', [0, 0.05, 0.03, 0.015, -0.10])
+def test_all_nar_layers_use_nar_scale_and_respect_ceiling(layer, adjustment):
+    result = build_result_from_nar_row(NAR, layer, MatchMetadata(matched_layer_name='test'))
+    assert result['confidence'] == NAR_LAYER_CONFIDENCE[layer]
+    assert result['confidence'] < MUNICIPAL_LAYER_CONFIDENCE[layer]
+    finalize_confidence(result, adjustment)
+    factors = result['confidence_factors']
+    assert factors['base_confidence'] == NAR_LAYER_CONFIDENCE[layer]
+    assert factors['geography_adjustment'] == adjustment
+    assert factors['confidence_cap'] == 0.90
+    assert result['confidence'] == pytest.approx(min(0.90, NAR_LAYER_CONFIDENCE[layer] + adjustment))
+    assert factors['final_confidence'] == result['confidence']
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('layer', [5, 6])
+@pytest.mark.parametrize('multiple', [False, True])
+async def test_nar_fuzzy_paths_do_not_reuse_municipal_scale(layer, multiple):
+    matcher = LayeredNARMatcher()
+    rows = [dict(NAR)] * (2 if multiple else 1)
+    # Exercise both the single-candidate and disambiguated fuzzy branches.
+    with patch('engine.layered_matcher.query_candidates', AsyncMock(return_value=rows)), \
+         patch('engine.layered_matcher.disambiguate', return_value=(rows[0], True, 20)):
+        if layer == 5:
+            result = await matcher._layer_5_fuzzy_postal_zone({}, 'N0', '21605', 'Adelaid')
+        else:
+            result = await matcher._layer_6_fuzzy_city({}, '21605', 'Adelaid', 'Middlesex Centre')
+    assert result['confidence'] == round(NAR_LAYER_CONFIDENCE[layer] * 0.8, 3)
+    assert result['street_similarity'] == 0.8
+    finalize_confidence(result, 0.05)
+    assert result['confidence_factors']['base_confidence'] == round(NAR_LAYER_CONFIDENCE[layer] * 0.8, 3)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('tier,base,adjustment,expected,clamped', [
+    (3, 0.85, 0.05, 0.90, False),  # Middlesex postal/core + alignment
+    (3, 0.90, 0.05, 0.90, True),   # exact NAR cannot exceed tier ceiling
+    (3, 0.70, None, 0.70, False),  # ceiling/factors also apply with no geography adjustment
+    (3, 0.70, -0.10, 0.60, False),
+    (2, 0.95, 0.05, 0.99, True),   # municipal policy unchanged
+])
+async def test_wrappers_preserve_true_base_and_apply_geography_once(tier, base, adjustment, expected, clamped):
+    from engine import geocoder
+    enriched = {} if adjustment is None else {'geography_confidence_adjustment': adjustment}
+    validator = AsyncMock()
+    validator.enrich_query_geography.return_value = enriched
+    raw = {'match_tier': tier, 'confidence': base, 'match_method': 'test'}
+    target = 'match_nar_layered' if tier == 3 else 'match_municipal_layered'
+    with patch.object(geocoder, 'get_validator', AsyncMock(return_value=validator)), \
+         patch.object(geocoder, target, AsyncMock(return_value=raw)):
+        result = await (geocoder.match_nar_data({}) if tier == 3 else geocoder.match_municipal_data({}))
+    before = deepcopy(result)
+    geocoder.calculate_enhanced_confidence(result, {})
+    assert result == before  # no double application or base-score overwrite
+    assert result['confidence'] == expected
+    assert result['confidence_factors']['base_confidence'] == base
+    assert result['confidence_factors']['clamped'] is clamped
+
+
+@pytest.mark.parametrize('tier', [1, 2, 3])
+def test_finalization_clamps_both_bounds(tier):
+    row = {'confidence': 0.5, 'match_tier': tier, 'match_method': 'test'}
+    assert finalize_confidence(dict(row), -1)['confidence'] == 0
+    assert finalize_confidence(dict(row), 1)['confidence'] == TIER_CONFIDENCE_CEILINGS[tier]
+
+
+def test_breakdown_survives_single_response_validation():
+    from api.models import GeocodeResponse
+    result = finalize_confidence({'confidence': 0.85, 'match_tier': 3, 'match_method': 'nar_postal_core'}, 0.05)
+    response = GeocodeResponse(**result).model_dump()
+    assert response['confidence_factors'] == result['confidence_factors']

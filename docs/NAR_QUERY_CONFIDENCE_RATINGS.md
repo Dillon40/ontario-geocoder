@@ -1,360 +1,111 @@
-# NAR Query Confidence Ratings
+# Geocoding confidence policy
 
-## Purpose
-Assign confidence ratings to NAR database queries based on which address fields are available in the input data.
+## Meaning and scope
 
-## Data Source
-Analysis of NAR Ontario dataset: **565,644 total addresses**
+Scores are **heuristic match-strength indicators, not calibrated probabilities of positional
+accuracy**. A high score does not guarantee rooftop precision. Consult `source`, `match_tier`,
+`match_method`, fuzzy-match metadata and the matched address as well as the score.
 
----
+NAR can identify an address unambiguously while its coordinates are less precise than municipal
+address points. It therefore has a separate, lower score scale and a **hard final ceiling of 0.90**.
+This applies to every NAR layer, including exact, fuzzy, cached and batch results—not just to
+Middlesex. Tier ordering is unchanged. Unit disambiguation uses `properties.unit_no` and
+`nar_addresses.apt_no_label`, separately from civic-number suffixes.
 
-## NAR Data Quality Assessment
+The single source of runtime scoring policy is `engine/confidence.py`. Earlier versions of this
+note mixed duplicate-resolution/uniqueness estimates from a partial NAR sample with examples from
+an older matching implementation. Those estimates are not coordinate-accuracy probabilities and
+must not be used as the current scoring contract. The policy below supersedes those examples.
 
-### Overview of Duplicates
+## Strategy scores
 
-| Category | Count | % of Total | % of Duplicates |
-|----------|-------|------------|-----------------|
-| **Unique (postal+civic)** | 521,006 | 92.11% | N/A |
-| **Duplicates (postal+civic)** | 44,638 | 7.89% | 100% |
-| ↳ Condo Towers | 5,963 | 1.05% | 13.36% |
-| ↳ Resolvable Streets | ~14,707 | 2.6% | ~33% |
-| ↳ OLD Problematic* | 23,556 | 4.16% | ~53% |
+`engine/layered_matcher.py` selects a candidate and assigns the appropriate tier's strategy score:
 
-\* *OLD Problematic cases were resolved by adding `street_type` and `apt_no_label` to the matching logic*
+| Layer | Match strategy | Municipal base | NAR base |
+|---|---|---:|---:|
+| 0 | Exact match on supplied fields | 0.99 | 0.90 |
+| 1 | Postal code + civic/street core | 0.95 | 0.85 |
+| 2 | FSA + civic/street core + city | 0.92 | 0.80 |
+| 3 | Postal zone + civic/street core | 0.88 | 0.75 |
+| 4 | City + civic/street core | 0.85 | 0.70 |
+| 5 | Fuzzy street within postal zone | 0.70 × similarity | 0.60 × similarity |
+| 6 | Fuzzy street within city | 0.65 × similarity | 0.55 × similarity |
 
----
+Fuzzy scores are rounded to three decimal places before geographic adjustment. For example,
+NAR layer 5 with similarity 0.80 produces a matcher score of 0.48. Similarity thresholds and
+ambiguity handling still determine whether a candidate is eligible; a confidence cap does not
+make an otherwise ambiguous or ineligible candidate valid.
 
-## Duplicate Resolution Methods
+## Geographic adjustment and final bounds
 
-### 1. Condo Towers (5,963 addresses)
-**Resolvable** if they have:
-- ✓ Same coordinates
-- ✓ Same street name
-- ✓ Different unit numbers (`apt_no_label`)
-- ✓ Coordinates present
+`engine/geographic_validator.py` can supply a geographic adjustment:
 
-**Example:**
-```
-K1A2B3 + 100 Main St, Unit 501, Ottawa (43.123, -79.456)
-K1A2B3 + 100 Main St, Unit 502, Ottawa (43.123, -79.456)
-K1A2B3 + 100 Main St, Unit 503, Ottawa (43.123, -79.456)
-```
-**Resolution:** Unique with `apt_no_label`
+| Evidence | Adjustment |
+|---|---:|
+| Requested FSA and municipality align | +0.05 |
+| Missing geographic field inferred from FSA | +0.03 |
+| Missing geographic field inferred from postal zone | +0.015 |
+| Requested FSA and municipality conflict | −0.10 |
+| No usable reference evidence / no adjustment | 0.00 |
 
----
+The validator supplies one adjustment. These are not bonuses to sum independently.
+Missing FSA reference coverage is unknown, not evidence of a conflict.
 
-### 2. Resolvable Streets (~14,707 addresses)
-**Resolvable** with unique combination of:
-- `street_name`
-- `street_type`
-- `street_dir`
-- `city` (csd_eng_name)
-- `civic_suffix`
-- `apt_no_label`
+After selection and any fuzzy scaling, `finalize_confidence()` applies the adjustment **once**:
 
-#### Field Effectiveness Analysis (tested on 2,958 ambiguous cases):
-
-| Field Combination | Resolution Rate | Addresses Resolved |
-|-------------------|----------------|-------------------|
-| `street_name` alone | 93.51% | 2,766 / 2,958 |
-| `street_name` + `street_dir` + `city` + `civic_suffix` | 94.22% | 2,787 / 2,958 |
-| All 6 fields above | ~100% | Nearly all |
-
-**Key Finding:** `street_name` is the single most powerful disambiguating field (93.51% effectiveness)
-
-**Example:**
-```
-K1A2B3 + 100 Main STREET North, Ottawa
-K1A2B3 + 100 Main AVENUE North, Ottawa
-```
-**Resolution:** `street_type` distinguishes them
-
----
-
-### 3. OLD Problematic Cases (23,556 addresses) - NOW RESOLVED
-These cases were previously unresolvable because when grouped by:
-- `postal_code`
-- `civic_no`
-- `street_name`
-- `street_dir`
-- `city`
-- `civic_suffix`
-
-All addresses had **identical values** (count > 1 for all groups).
-
-**Example of OLD Problematic:**
-```
-K1A2B3 + 100 Main St N, Ottawa (no suffix)
-K1A2B3 + 100 Main St N, Ottawa (no suffix)
-K1A2B3 + 100 Main St N, Ottawa (no suffix)
+```text
+base_confidence = matcher score (already similarity-scaled for fuzzy results)
+unclamped_confidence = round(base_confidence + geography_adjustment, 6)
+confidence = round(max(0, min(tier_ceiling, unclamped_confidence)), 6)
 ```
 
-**Resolution:** Adding `street_type` and `apt_no_label` resolved these cases, making them distinguishable.
+Final ceilings:
 
----
+- Tier 1, PIN: **1.00** (parcel identity; a parcel can have multiple addresses).
+- Tier 2, municipal: **0.99**.
+- Tier 3, NAR: **0.90**.
 
-## Confidence Rating Formula
+There is no fixed 0.36 lower bound: weaker fuzzy-city matches and geographic penalties can
+produce lower scores. All final scores remain within `[0, tier_ceiling]`.
 
-### Baseline Confidence by Fields Available
+## Public confidence breakdown
 
-| Input Fields Available | Unique Match Rate | Confidence Score | Expected Results |
-|------------------------|-------------------|------------------|------------------|
-| **Minimal: postal + civic** | 92.11% | **0.92** | 1 result (92% of time)<br>2-5 results (8% of time) |
-| **Basic: postal + civic + street_name** | ~96-97%* | **0.96** | 1 result (most cases)<br>2-3 results (rare) |
-| **Standard: postal + civic + street_name + street_type + city** | ~98%* | **0.98** | 1-2 results |
-| **Complete: All 8 fields** | ~99.9%* | **0.99** | 1 result (nearly guaranteed) |
-
-\* *Estimated based on 92.11% base rate + resolution of duplicates*
-
-### The 8 Fields for Complete Address Match:
-1. `mail_postal_code`
-2. `civic_no`
-3. `official_street_name`
-4. `official_street_type` ← Critical for disambiguation
-5. `official_street_dir`
-6. `csd_eng_name` (city)
-7. `civic_no_suffix`
-8. `apt_no_label` ← Critical for condo towers
-
----
-
-## Confidence Adjustments
-
-### Boost Confidence (+0.02 to +0.05):
-- **Single result returned:** +0.05
-  - If query returns exactly 1 result, confidence increases
-- **Coordinates present in result:** +0.02
-  - NAR record has coordinates (only 18.69% have coords)
-
-### Lower Confidence (-0.05 to -0.10):
-- **Multiple results returned (2-5):** -0.05
-  - Query matched multiple records
-- **Many results (6+):** -0.10
-  - Highly ambiguous query
-- **No coordinates in result:** -0.02
-  - NAR record missing geocode data
-
----
-
-## Implementation Examples
-
-### Example 1: Minimal Query (Postal + Civic Only)
-```python
-input_query = {
-    'postal': 'K1A2B3',
-    'civic': '100'
-}
-
-# Base confidence: 0.92 (92.11% unique rate)
-base_confidence = 0.92
-
-results = query_nar(input_query)
-
-if len(results) == 1:
-    final_confidence = 0.92 + 0.05  # = 0.97
-elif len(results) <= 5:
-    final_confidence = 0.92 - 0.05  # = 0.87
-else:
-    final_confidence = 0.92 - 0.10  # = 0.82
-
-return {
-    'matches': results,
-    'confidence': final_confidence,
-    'reason': 'Postal+civic only - may have duplicates'
-}
-```
-
-### Example 2: Standard Query (With Street Name)
-```python
-input_query = {
-    'postal': 'K1A2B3',
-    'civic': '100',
-    'street_name': 'MAIN',
-    'city': 'OTTAWA'
-}
-
-# Base confidence: 0.96 (street_name resolves 93.51% of duplicates)
-base_confidence = 0.96
-
-results = query_nar(input_query)
-
-if len(results) == 1:
-    final_confidence = 0.96 + 0.05  # = 1.00 (capped at 0.99)
-    final_confidence = min(0.99, final_confidence)
-else:
-    final_confidence = 0.96 - 0.05  # = 0.91
-
-return {
-    'matches': results,
-    'confidence': final_confidence,
-    'reason': 'Missing street_type - may have duplicates'
-}
-```
-
-### Example 3: Complete Query (All 8 Fields)
-```python
-input_query = {
-    'postal': 'K1A2B3',
-    'civic': '100',
-    'street_name': 'MAIN',
-    'street_type': 'STREET',
-    'street_dir': 'N',
-    'city': 'OTTAWA',
-    'civic_suffix': None,
-    'apt_no': '501'
-}
-
-# Base confidence: 0.99 (nearly 100% unique with all fields)
-base_confidence = 0.99
-
-results = query_nar(input_query)
-
-# With all 8 fields, should always return 1 result
-if len(results) == 1:
-    final_confidence = 0.99  # Already at max
-
-return {
-    'matches': results,
-    'confidence': final_confidence,
-    'reason': 'Complete address match - highly confident'
-}
-```
-
----
-
-## API Response Format
-
-### Recommended Response Structure:
-```json
-{
-  "query": {
-    "postal": "K1A2B3",
-    "civic": "100",
-    "street_name": "MAIN",
-    "city": "OTTAWA"
-  },
-  "results": {
-    "count": 2,
-    "confidence": 0.91,
-    "confidence_factors": {
-      "base": 0.96,
-      "adjustments": {
-        "multiple_results": -0.05
-      }
-    },
-    "addresses": [
-      {
-        "addr_guid": "abc-123",
-        "full_address": "100 Main Street North, Ottawa, ON K1A2B3",
-        "coordinates": {
-          "latitude": 45.4215,
-          "longitude": -75.6972
-        },
-        "has_coordinates": true
-      },
-      {
-        "addr_guid": "def-456",
-        "full_address": "100 Main Avenue North, Ottawa, ON K1A2B3",
-        "coordinates": null,
-        "has_coordinates": false
-      }
-    ]
-  },
-  "recommendation": "Query returned multiple results. Provide 'street_type' to disambiguate."
-}
-```
-
----
-
-## Fuzzy Street Name Matching (NEW)
-
-When exact matching methods fail, the NAR geocoder falls back to **fuzzy street name matching** using PostgreSQL's `pg_trgm` extension.
-
-### How It Works
-
-Uses trigram similarity to catch typos like:
-- "Elizbeth" → "Elizabeth" (missing 'a')
-- "Queenswei" → "Queensway" (wrong ending)
-- "Chruchill" → "Churchill" (transposed letters)
-
-### Requirements
-
-| Field | Required |
-|-------|----------|
-| FSA (postal code prefix) | ✓ Yes |
-| Civic number | ✓ Yes |
-| Street name (with typo) | ✓ Yes |
-
-### Confidence Calculation
-
-```
-confidence = 0.60 × similarity_score
-```
-
-| Similarity Score | Confidence | Match Quality |
-|------------------|------------|---------------|
-| 0.60 (minimum) | 0.36 | Marginal - use with caution |
-| 0.70 | 0.42 | Acceptable |
-| 0.80 | 0.48 | Good |
-| 0.90 | 0.54 | Very good |
-| 1.00 | 0.60 | Perfect (exact match) |
-
-### Result Metadata
-
-Fuzzy matches include additional fields:
+`confidence_factors` is identical in single, batch and cached results:
 
 ```json
 {
-  "fuzzy_match": true,
-  "street_similarity": 0.85,
-  "input_street_name": "Elizbeth",
-  "matched_street_name": "Elizabeth",
-  "match_method": "fsa_street_fuzzy_nar"
+  "confidence": 0.90,
+  "confidence_factors": {
+    "base_confidence": 0.85,
+    "geography_adjustment": 0.05,
+    "unclamped_confidence": 0.90,
+    "confidence_cap": 0.90,
+    "final_confidence": 0.90,
+    "clamped": false,
+    "tier": 3,
+    "match_method": "nar_postal_core"
+  }
 }
 ```
 
-### When Fuzzy Matching Runs
+For an exact NAR match with FSA/city alignment, the values are instead base `0.90`, adjustment
+`+0.05`, unclamped `0.95`, final `0.90`, and `clamped=true`. For a city/core NAR match with no
+geographic adjustment, base and final are both `0.70`.
 
-Fuzzy matching is **Method 4** in the NAR cascade:
-1. Method 1: Postal + Civic + Components (0.80-0.90)
-2. Method 2: Full Address String (0.70-0.80)
-3. Method 3: Component Fuzzy (0.60-0.70)
-4. **Method 4: FSA + Fuzzy Street (0.36-0.60)** ← Only runs if Methods 1-3 fail
+`base_confidence` is the pre-geography matcher score, **not** a duplicate of the final score.
+Consumers that want the final decision score should read top-level `confidence` (also exposed as
+`confidence_factors.final_confidence`). On fuzzy results, `street_similarity` describes the
+similarity scaling that has already been applied to `base_confidence`.
 
----
+## Upgrades and verification
 
-## Key Insights
+Response-cache namespace v5 invalidates older labels/scores/factors and unit results without flushing API-key or
+rate-limit state. Rebuild/recreate the API; no database migration or source reimport is required
+for scoring changes. Existing NAR coordinates and municipal source exclusions are unchanged.
 
-1. **92.11% of NAR addresses** are unique on postal+civic alone
-2. **`street_name` is the most powerful field** - resolves 93.51% of ambiguous cases by itself
-3. **`street_type` is critical** - "100 Main Street" vs "100 Main Avenue" are different addresses
-4. **`apt_no_label` is critical** - distinguishes units in condo towers
-5. **All 8 fields together** provide ~99.9% unique matching
-6. **Fuzzy matching catches typos** - "Elizbeth" → "Elizabeth" with scaled confidence
-
----
-
-## Confidence Rating Quick Reference
-
-| Fields Provided | Confidence | When to Use |
-|-----------------|-----------|-------------|
-| postal + civic | 0.92 | Minimal data available, expect some duplicates |
-| + street_name | 0.96 | Standard lookup, high confidence |
-| + street_type + city | 0.98 | Very high confidence, few duplicates |
-| All 8 fields | 0.99 | Maximum confidence, nearly guaranteed unique |
-| **Fuzzy (FSA + civic + typo)** | **0.36-0.60** | Fallback for typos when exact matching fails |
-
----
-
-## Monitoring & Validation
-
-Track these metrics in production:
-- Distribution of query types (how many fields users provide)
-- Actual match rates vs predicted confidence
-- Cases where confidence was high but multiple results returned
-- User feedback on result quality
-- **Fuzzy match frequency**: How often fuzzy matching is used as fallback
-- **Fuzzy match accuracy**: Verify fuzzy matches are correct (sample validation)
-- **Similarity score distribution**: Track range of similarity scores returned
-
-Adjust confidence formulas based on real-world performance.
+The live gate in `api/scripts/verify_deployment.py` checks a postal/core NAR match in Middlesex,
+city-only and exact-postal matches in Huntsville, their cached responses, and batch parity.
+Regression tests cover all seven NAR layers, both fuzzy selection branches, positive/negative
+geographic adjustments, tier bounds, and preservation of the true base score through API
+serialization. Future changes to these heuristic weights require consistent updates to this
+policy and its tests; claims about actual accuracy require independent evaluation.

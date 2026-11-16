@@ -27,6 +27,7 @@ from enum import Enum
 from . import config, database
 from .address_parser import normalize_street_suffix, normalize_direction
 from .address_formatter import format_property_address
+from .confidence import MUNICIPAL_LAYER_CONFIDENCE, NAR_LAYER_CONFIDENCE
 
 
 async def query_candidates(query, params, components):
@@ -84,16 +85,9 @@ class MatchMetadata:
     civic_suffix_fallback: bool = False  # True when matched via suffix variant (e.g., "1" -> "1A")
 
 
-# Confidence scores for each layer
-LAYER_CONFIDENCE = {
-    0: 0.99,  # Exact match - highest confidence
-    1: 0.95,  # Postal + core
-    2: 0.92,  # FSA + core + city
-    3: 0.88,  # Postal zone + core
-    4: 0.85,  # City + core
-    5: 0.70,  # Fuzzy (postal zone) - base, scaled by similarity
-    6: 0.65,  # Fuzzy (city) - base, scaled by similarity
-}
+# Backward-compatible name for municipal callers/tests. NAR has a separate
+# scale; all strategy tables and final tier ceilings live in confidence.py.
+LAYER_CONFIDENCE = MUNICIPAL_LAYER_CONFIDENCE
 
 # Minimum score gap required to declare a clear winner in disambiguation
 DISAMBIGUATION_MARGIN = 10
@@ -341,7 +335,7 @@ def build_result_from_nar_row(row: Any, layer: int, metadata: MatchMetadata) -> 
         'longitude': float(row['bg_longitude']),
         'matched_address': full_address.strip(),
         'source': 'nar_match',
-        'confidence': LAYER_CONFIDENCE.get(layer, 0.5),
+        'confidence': NAR_LAYER_CONFIDENCE.get(layer, 0.5),
         'match_tier': 3,
         'match_layer': layer,
         'match_method': metadata.matched_layer_name,
@@ -1522,7 +1516,7 @@ class LayeredNARMatcher:
                     candidates=1
                 ))
                 result = build_result_from_nar_row(similar_results[0], 5, self.metadata)
-                result['confidence'] = round(LAYER_CONFIDENCE[5] * best_similarity, 3)
+                result['confidence'] = round(NAR_LAYER_CONFIDENCE[5] * best_similarity, 3)
                 result['fuzzy_match'] = True
                 result['street_similarity'] = round(best_similarity, 3)
                 result['input_street_name'] = street_name
@@ -1542,7 +1536,7 @@ class LayeredNARMatcher:
                 ))
                 result = build_result_from_nar_row(best_row, 5, self.metadata)
                 similarity = float(best_row['street_similarity'])
-                result['confidence'] = round(LAYER_CONFIDENCE[5] * similarity, 3)
+                result['confidence'] = round(NAR_LAYER_CONFIDENCE[5] * similarity, 3)
                 result['fuzzy_match'] = True
                 result['street_similarity'] = round(similarity, 3)
                 result['input_street_name'] = street_name
@@ -1631,7 +1625,7 @@ class LayeredNARMatcher:
                     candidates=1
                 ))
                 result = build_result_from_nar_row(similar_results[0], 6, self.metadata)
-                result['confidence'] = round(LAYER_CONFIDENCE[6] * best_similarity, 3)
+                result['confidence'] = round(NAR_LAYER_CONFIDENCE[6] * best_similarity, 3)
                 result['fuzzy_match'] = True
                 result['street_similarity'] = round(best_similarity, 3)
                 result['input_street_name'] = street_name
@@ -1651,7 +1645,7 @@ class LayeredNARMatcher:
                 ))
                 result = build_result_from_nar_row(best_row, 6, self.metadata)
                 similarity = float(best_row['street_similarity'])
-                result['confidence'] = round(LAYER_CONFIDENCE[6] * similarity, 3)
+                result['confidence'] = round(NAR_LAYER_CONFIDENCE[6] * similarity, 3)
                 result['fuzzy_match'] = True
                 result['street_similarity'] = round(similarity, 3)
                 result['input_street_name'] = street_name

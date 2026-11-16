@@ -49,10 +49,15 @@ class GeocodeRequest(BaseModel):
 
 
 class ConfidenceFactors(BaseModel):
-    """Confidence score breakdown."""
+    """Matcher base (after fuzzy scaling), geography adjustment and tier clamp."""
     base_confidence: float
     tier: int
     match_method: str
+    geography_adjustment: float = 0.0
+    unclamped_confidence: Optional[float] = None
+    confidence_cap: Optional[float] = None
+    final_confidence: Optional[float] = None
+    clamped: bool = False
 
 
 class LicenseInfo(BaseModel):
@@ -76,11 +81,8 @@ class GeocodeResponse(BaseModel):
     source: Optional[str] = None
     confidence: Optional[float] = None
     match_tier: Optional[int] = None
-    # Match-strategy labels from the layered matcher. These distinguish a
-    # rooftop-grade hit (e.g. 'exact_all_fields', 'municipal_toronto') from a
-    # coarse centroid fallback (e.g. 'fsa_core_city'), so callers can split a
-    # raw match rate into usable-precision vs centroid-grade. They are opaque
-    # strategy names — no SQL, paths, or driver detail.
+    # Identify the matching strategy, not the positional accuracy of the
+    # source coordinates. An exact address match is not a rooftop guarantee.
     match_method: Optional[str] = None
     match_layer: Optional[int] = None
     fuzzy_match: Optional[bool] = None
