@@ -25,6 +25,7 @@
       "N1L"
     ],
     "field_mappings": {
+      "property_id": "ADDID",
       "street_number": "STREETNO",
       "street_name": "STNAME",
       "street_suffix": "STSUF",
@@ -64,6 +65,49 @@
         "enabled": true,
         "strict_bounds": "ontario"
       }
+    }
+  },
+  "hamilton": {
+    "municipality": "Hamilton",
+    "province": "ON",
+    "postal_prefixes": [],
+    "field_mappings": {
+      "property_id": "OBJECTID",
+      "street_number": "NUMBER_COMPLETE",
+      "street_name": "STREET_NAME",
+      "street_suffix": "STREET_SUFFIX_TYPE",
+      "street_direction": "STREET_SUFFIX_DIRECTION",
+      "unit_no": "UNIT_NUMBER_COMPLETE",
+      "city": "MUNICIPALITY",
+      "postal_code": "POSTAL_CODE"
+    },
+    "transforms": {
+      "parse_civic_number": {"enabled": true, "passthrough_suffix": true},
+      "normalize_fields": {"enabled": true},
+      "map_municipality": {"enabled": true, "default_city": "Hamilton"},
+      "validate": {"enabled": true, "strict_bounds": "ontario"}
+    }
+  },
+  "middlesex_county": {
+    "_comment": "County-published consolidated address layer (August 2022 snapshot); municipality derived from official boundaries.",
+    "municipality": "",
+    "province": "ON",
+    "postal_prefixes": [],
+    "field_mappings": {
+      "property_id": "GlobalID",
+      "street_number": "MUNNUMBER",
+      "street_name": "STREET_NAM",
+      "street_suffix": "STREET_TYP",
+      "street_direction": "STREET_DIR",
+      "full_address": "FULLADDRES",
+      "unit_no": "UNIT"
+    },
+    "transforms": {
+      "parse_civic_number": {"enabled": true, "passthrough_suffix": true},
+      "normalize_fields": {"enabled": true},
+      "map_municipality": {"enabled": true, "derive_from_coordinates": true},
+      "enrich_fsa": {"enabled": true},
+      "validate": {"enabled": true, "strict_bounds": "ontario"}
     }
   },
   "toronto": {
@@ -534,68 +578,6 @@
       }
     }
   },
-  "middlesex_county_addresses": {
-    "_comment": "Combined from 14 municipality datasets. Field mappings need verification when server is accessible.",
-    "municipality": "Middlesex County",
-    "province": "ON",
-    "postal_prefixes": [
-      "N0L",
-      "N0M",
-      "N0N",
-      "N7G"
-    ],
-    "multi_municipality": true,
-    "municipality_field": "_source_municipality",
-    "field_mappings": {
-      "property_id": "OBJECTID",
-      "street_number": "STREETNO",
-      "street_name": "STNAME",
-      "street_suffix": "STSUF",
-      "street_direction": "STDIR",
-      "full_address": "ADDRESS",
-      "unit_no": "UNIT",
-      "civic_no_suffix": "QUALIFIER"
-    },
-    "transforms": {
-      "parse_street_name": {
-        "enabled": true,
-        "source_field": "street_name",
-        "preserve_original": true,
-        "_comment": "May need street name parsing depending on actual field format"
-      },
-      "parse_civic_number": {
-        "enabled": true,
-        "passthrough_suffix": true
-      },
-      "normalize_fields": {
-        "enabled": true
-      },
-      "map_municipality": {
-        "enabled": true,
-        "source_field": "_source_municipality",
-        "preserve_original": true,
-        "_comment": "Uses _source_municipality field added by downloader to identify municipality"
-      },
-      "enrich_fsa": {
-        "enabled": true,
-        "_comment": "Middlesex source likely lacks postal codes - spatial FSA lookup needed"
-      },
-      "validate": {
-        "enabled": true,
-        "strict_bounds": "ontario",
-        "required_field_groups": [
-          [
-            "latitude",
-            "longitude"
-          ],
-          [
-            "street_number",
-            "full_address"
-          ]
-        ]
-      }
-    }
-  },
   "windsor_addresses": {
     "municipality": "City of Windsor",
     "province": "ON",
@@ -623,14 +605,14 @@
     ],
     "field_mappings": {
       "property_id": "OBJECTID",
-      "street_number": "street_address",
+      "street_number": "address_number",
       "street_name": "street_name",
       "street_suffix": "street_suffix",
       "street_direction": "street_direction",
       "unit_no": "unit_number",
-      "full_address": "Address",
+      "full_address": "property_address",
       "assessment_roll_number": "roll_number",
-      "ward": "Ward"
+      "ward": "ward_number"
     },
     "transforms": {
       "parse_street_name": {
@@ -640,7 +622,7 @@
       "parse_civic_number": {
         "enabled": true,
         "passthrough_suffix": true,
-        "_comment": "Parse suffixes from street_address if present"
+        "_comment": "Parse suffixes from address_number if present"
       },
       "normalize_fields": {
         "enabled": true,
@@ -2298,9 +2280,9 @@
     "municipality_field": "MUNI",
     "field_mappings": {
       "property_id": "GlobalID",
-      "street_number": "StrNum2",
+      "street_number": "Civic",
       "street_name": "StrFULL",
-      "full_address": "StrNUM_StrFULL",
+      "full_address": "Address",
       "unit_no": "StrUNIT",
       "city": "MUNI",
       "assessment_roll_number": "ARN",
@@ -2323,7 +2305,7 @@
       },
       "map_municipality": {
         "enabled": false,
-        "_comment": "MUNI contains proper names like 'Middlesex Centre'"
+        "_comment": "Preserve upstream Elgin municipality labels from MUNI"
       },
       "enrich_fsa": {
         "enabled": true,

@@ -42,7 +42,7 @@ STANDARD_SOURCES = {
     "cornwall": "https://services2.arcgis.com/tPtW2sjE3XOR63A7/arcgis/rest/services/AddressPoints/FeatureServer/34",
     "dufferin_county_addresses": "https://services5.arcgis.com/C0BEdgagVaXzcw0W/arcgis/rest/services/Address_Points_DufferinCounty_Open_Data/FeatureServer/0",
     "durham_region_addresses": "https://maps.durham.ca/arcgis/rest/services/Open_Data/Durham_OpenData/MapServer/0",
-    "elgin_county_addresses": "https://services6.arcgis.com/TCQ78XR5HqDZ1SDc/arcgis/rest/services/Elgin_Civic_Numbers_2025/FeatureServer/0",
+    "elgin_county_addresses": "https://services6.arcgis.com/TCQ78XR5HqDZ1SDc/arcgis/rest/services/Elgin_Civic_Numbers_2026/FeatureServer/0",
     "essex_county_tecumseh": "https://gisweb.tecumseh.ca/arcgis/rest/services/OpenDataMaps/OpenDataMAP_InfraZonePropBound_Layers/MapServer/33",
     "frontenac_county": "https://services2.arcgis.com/vJlmDE1PmdTcJF0N/arcgis/rest/services/Civic_Address_Points_View_2/FeatureServer/0",
     "greater_sudbury": "https://services.arcgis.com/q3mIlR87lZlZsds3/arcgis/rest/services/Address_and_Building_Roofline/FeatureServer/2",
@@ -53,7 +53,7 @@ STANDARD_SOURCES = {
     "kawartha_lakes_addresses": "https://services3.arcgis.com/RQBDTPtsbT0jebs7/arcgis/rest/services/CKL_Address_Point_View/FeatureServer/0",
     "kingston_addresses": "https://utility.arcgis.com/usrsvcs/servers/d76e1fe447e84cb1983c76e1cb9dadb4/rest/services/Planning/Civic_Address_Point_Public/FeatureServer/0",
     "leeds_and_grenville": "https://services3.arcgis.com/KQcdsE7S72bcD7R8/arcgis/rest/services/LG_CivicAddress_OpenData/FeatureServer/0",
-    "london_addresses": "https://maps.london.ca/arcgisa/rest/services/OpenData/OpenData_Community/MapServer/0",
+    "london_addresses": "https://maps.london.ca/server/rest/services/OpenData/OpenData_Community/MapServer/0",
     "milton_addresses": "https://api.milton.ca/arcgis/rest/services/Datasets/Address_Pts/MapServer/0",
     "muskoka_addresses": "https://utility.arcgis.com/usrsvcs/servers/7dbdeb9bc94b45d4a3296f73fba38a3c/rest/services/Addressing/Addressing_Service_Public/FeatureServer/0",
     "niagara_region_addresses": "https://services1.arcgis.com/WxiLK82TWf8W3O3f/arcgis/rest/services/OpenData_Address_Points/FeatureServer/43",
@@ -64,10 +64,10 @@ STANDARD_SOURCES = {
     "parry_sound_district_addresses": "https://www.wpsgn.ca/s22/rest/services/NG911/NG911/FeatureServer/9112",
     "peel_region_addresses": "https://services6.arcgis.com/ONZht79c8QWuX759/arcgis/rest/services/Address_Points/FeatureServer/0",
     "peterborough": "https://services1.arcgis.com/JOTjMnANji9YTrZ2/arcgis/rest/services/Address/FeatureServer/0",
-    "sarnia": "https://services1.arcgis.com/ICybsLmBXrZCZV3x/arcgis/rest/services/Addresses_Open_Data/FeatureServer/0",
+    "sarnia": "https://services1.arcgis.com/ICybsLmBXrZCZV3x/arcgis/rest/services/Addresses_Open_Data_AGOL/FeatureServer/0",
     "thunder_bay": "https://services5.arcgis.com/h9xShea49ZANgOtx/arcgis/rest/services/Municipal_Address_Feature_Layer/FeatureServer/0",
     "waterloo_region_addresses": "https://utility.arcgis.com/usrsvcs/servers/d4d0c6dedec14e59930688f3830776c6/rest/services/OpenData/OpenData/MapServer/1",
-    "windsor_addresses": "https://mappmycity.ca/arcgis/rest/services/OpenDataServices/PropertyParcels/MapServer/0",
+    "windsor_addresses": "https://mappmycity.ca/arcgis/rest/services/open_data_services/propertyparcels/MapServer/0",
     "york_region_addresses": "https://ww8.yorkmaps.ca/arcgis/rest/services/OpenData/Location/MapServer/0",
 }
 
@@ -80,7 +80,8 @@ async def download_arcgis(source_key: str, endpoint: str, force: bool = False) -
     """
     logger.info(f"[{source_key}] Starting download from {endpoint}")
 
-    output_path = ensure_output_dir(source_key)
+    final_path = ensure_output_dir(source_key)
+    output_path = final_path.with_suffix('.geojson.part')
 
     # Use a temporary client to get server info for adaptive timeout
     async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=30.0)) as probe_client:
@@ -92,7 +93,10 @@ async def download_arcgis(source_key: str, endpoint: str, force: bool = False) -
 
     oid_field = info["oid_field"]
     max_record_count = info["max_record_count"]
-    page_size = max_record_count  # Trust server's declared limit
+    # Polygon vertices, not feature count, dominate response size. The
+    # advertised limit is unsafe for province-wide detailed boundary layers.
+    page_size = min(max_record_count, 5) if source_key in (
+        'fsa_boundaries', 'ontario_municipal_boundaries') else max_record_count
     output_format = "geojson" if info["supports_geojson"] else "json"
     timeout = get_adaptive_timeout(max_record_count)
 
@@ -105,18 +109,13 @@ async def download_arcgis(source_key: str, endpoint: str, force: bool = False) -
             total_count = await get_record_count(endpoint, client)
             logger.info(f"[{source_key}] Total records: {total_count:,}")
 
-            # Step 2: Check for partial download to resume
+            # Restart into staging; incomplete GeoJSON is not resumable.
             last_oid = 0
             records_written = 0
             is_first = True
             resuming = False
 
-            if not force:
-                resume_oid = get_resume_oid(output_path)
-                if resume_oid is not None:
-                    last_oid = resume_oid
-                    resuming = True
-                    logger.info(f"[{source_key}] Resuming from OID {last_oid}")
+            # Replace the previous download only after validating the record count.
 
             actual_fields = set()
 
@@ -145,6 +144,8 @@ async def download_arcgis(source_key: str, endpoint: str, force: bool = False) -
                         if records_written <= 10:
                             actual_fields.update(feature.get("properties", {}).keys())
 
+                    if new_last_oid <= last_oid:
+                        raise RuntimeError('ArcGIS pagination did not advance')
                     last_oid = new_last_oid
 
                     if records_written % 10000 == 0:
@@ -153,11 +154,14 @@ async def download_arcgis(source_key: str, endpoint: str, force: bool = False) -
 
                 stream_geojson_end(f)
 
+            if records_written != total_count or not records_written:
+                raise RuntimeError(f'Incomplete download: {records_written}/{total_count} records')
+            output_path.replace(final_path)
             # Step 3: Validate fields
             validate_fields(source_key, actual_fields)
 
             logger.info(f"[{source_key}] Complete: {records_written:,} records")
-            return make_result(True, source_key, records_written, output_path)
+            return make_result(True, source_key, records_written, final_path)
 
         except Exception as e:
             logger.exception(f"[{source_key}] Download failed")

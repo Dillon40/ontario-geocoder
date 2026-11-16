@@ -7,6 +7,12 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
+def test_mapping_identity_and_confirmed_sources():
+    mappings = json.loads((ROOT / 'config/dataset-mappings.json').read_text())
+    assert mappings['guelph']['field_mappings']['property_id'] == 'ADDID'
+    assert mappings['hamilton']['field_mappings']['street_number'] == 'NUMBER_COMPLETE'
+    assert mappings['middlesex_county']['field_mappings']['property_id'] == 'GlobalID'
+
 @pytest.mark.asyncio
 async def test_migrations_verify_null_unknown_and_changed_checksums():
     from database.run_migrations import verify_applied_checksums,parse_migrations
@@ -42,6 +48,18 @@ def test_etl_uses_active_interpreter_not_inline_uv_environments():
     assert "'uv', 'run', str(script_path)" not in source
     assert 'sys.executable' in source
     assert 'input("  Continue with remaining sources?' not in source
+
+@pytest.mark.asyncio
+async def test_arcgis_invalid_json_is_retried_not_empty_success():
+    from data_sourcing.downloaders.download_utils import fetch_arcgis_page_with_retry
+    client=AsyncMock()
+    bad=MagicMock(); bad.status_code=200; bad.json.side_effect=ValueError('HTML gateway response')
+    good=MagicMock(); good.status_code=200; good.json.return_value={'features':[{'properties':{'OBJECTID':1}}]}
+    client.get.side_effect=[bad,good]
+    with patch('data_sourcing.downloaders.download_utils.asyncio.sleep',AsyncMock()):
+        features,oid=await fetch_arcgis_page_with_retry('https://example.test/0','OBJECTID',0,10,'geojson',client)
+    assert len(features)==1 and oid==1
+    assert client.get.await_count==2
 
 @pytest.mark.asyncio
 async def test_nar_upsert_counts_inserts_and_updates_separately():
@@ -97,6 +115,16 @@ async def test_row_failures_are_not_success_even_for_legacy_completed_history():
         result=await setup_data.run_import_with_tracking(conn,{'source_key':'test'})
         assert not result.success
         assert '1 rows failed' in result.error_message
+
+
+def test_identity_reconciliation_refuses_duplicate_ids(tmp_path):
+    from data_sourcing.management.reconcile_property_ids import expected_ids
+    f=tmp_path/'addresses.json'
+    f.write_text(json.dumps({'features':[{'properties':{'ADDID':1,'ADDRESS':'51 Cork Street West'}}]}))
+    assert expected_ids('guelph',f)=={'GUE-ID-1':'51 Cork Street West'}
+    f.write_text(json.dumps({'features':[{'properties':{'ADDID':1}},{'properties':{'ADDID':1}}]}))
+    with pytest.raises(ValueError,match='Duplicate upstream ID'):
+        expected_ids('guelph',f)
 
 
 def test_native_env_keeps_credentials_private_and_existing_file(tmp_path):

@@ -429,12 +429,12 @@ async def download_source(conn, source: dict, force: bool = False) -> bool:
 
     # Determine destination path
     if local_file_path:
-        dest_path = DATA_DIR.parent / local_file_path
+        dest_path = DATA_DIR.parent.parent / local_file_path
     else:
         dest_path = DATA_DIR / source_key / f"{source_key}.{download_format}"
 
     # Check if already downloaded (unless force)
-    if not force and dest_path.exists():
+    if not force and dest_path.is_file():
         # Validate GeoJSON files aren't truncated from a previous crashed download
         if dest_path.suffix.lower() in ('.geojson', '.json'):
             try:
@@ -513,8 +513,8 @@ async def download_source(conn, source: dict, force: bool = False) -> bool:
                 print(f"  ✗ {result.get('error', 'Unknown error')}")
                 await update_sync_status(conn, source_key, 'error', error=result.get('error'))
                 return False
-            record_count = result.get('record_count')
-            dest_path = result.get('file_path', dest_path)
+            record_count = result.get('records')
+            dest_path = result.get('path') or dest_path
 
         # Update database
         await update_source_refresh(conn, source_key, record_count)
@@ -742,6 +742,8 @@ Examples:
         print(f"  Skipped:    {skip_count}")
         print(f"  Failed:     {fail_count}")
         print(f"{'='*60}")
+        if fail_count:
+            sys.exit(1)
 
     finally:
         await conn.close()

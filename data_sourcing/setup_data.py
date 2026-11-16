@@ -341,29 +341,15 @@ def run_import_script(source_info: dict, force: bool = False) -> bool:
                     return False
         return success
 
-    elif 'fsa_boundaries' in import_script.lower():
-        # FSA boundaries import
-        data_dir = PROJECT_ROOT / (local_file_path or f'data_sources/{source_key}')
-        shp_files = list(data_dir.glob('**/*.shp'))
-        if not shp_files:
-            print(f"  No shapefile found in {data_dir}")
+    elif 'boundaries' in import_script.lower():
+        data_path = PROJECT_ROOT / (local_file_path or f'data_sourcing/data_sources/{source_key}')
+        candidates = ([data_path] if data_path.is_file() else
+                      sorted(data_path.glob('**/*.geojson')) + sorted(data_path.glob('**/*.shp')))
+        if not candidates:
+            print(f"  No boundary GeoJSON/shapefile found in {data_path}")
             return False
-
-        cmd = [sys.executable, str(script_path), '--shapefile', str(shp_files[0])]
-        print(f"  Importing: {shp_files[0].name}")
-        result = subprocess.run(cmd, env=run_env)
-        return result.returncode == 0
-
-    elif 'municipal_boundaries' in import_script.lower():
-        # Municipal boundaries import
-        data_dir = PROJECT_ROOT / (local_file_path or f'data_sources/{source_key}')
-        shp_files = list(data_dir.glob('**/*.shp'))
-        if not shp_files:
-            print(f"  No shapefile found in {data_dir}")
-            return False
-
-        cmd = [sys.executable, str(script_path), '--shapefile', str(shp_files[0])]
-        print(f"  Importing: {shp_files[0].name}")
+        cmd = [sys.executable, str(script_path), '--shapefile', str(candidates[0])]
+        print(f"  Importing: {candidates[0].name}")
         result = subprocess.run(cmd, env=run_env)
         return result.returncode == 0
 

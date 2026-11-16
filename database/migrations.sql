@@ -1892,5 +1892,30 @@ ALTER TABLE properties ALTER COLUMN unit_no TYPE TEXT;
 COMMIT;
 
 -- ============================================================================
+-- MIGRATION 35: Repair confirmed source endpoints and boundary formats
+-- ============================================================================
+
+BEGIN;
+
+UPDATE data_sources SET
+    api_endpoint = 'https://services.arcgis.com/vhh9rYcMiBEBPGYb/arcgis/rest/services/MiddlesexCountyAddressPoints/FeatureServer/0',
+    api_type = 'ArcGIS/FeatureServer', dataset_mapping_key = 'middlesex_county',
+    multi_endpoint_config = NULL,
+    notes = 'County-published consolidated address layer, August 2022 snapshot. Municipality resolved from official boundaries. ArcGIS item 928ed74edad64e4aa65170fb49c46476.'
+WHERE source_key = 'middlesex_county_addresses';
+UPDATE data_sources SET
+    api_endpoint = 'https://geo.statcan.gc.ca/geo_wa/rest/services/2021/Digital_boundary_files/MapServer/14',
+    api_type = 'ArcGIS/MapServer', download_format = 'geojson',
+    local_file_path = 'data_sourcing/data_sources/fsa_boundaries/fsa_boundaries.geojson'
+WHERE source_key = 'fsa_boundaries';
+UPDATE data_sources SET
+    api_endpoint = 'https://ws.lioservices.lrc.gov.on.ca/arcgis2/rest/services/LIO_OPEN_DATA/LIO_Open03/MapServer/14',
+    api_type = 'ArcGIS/MapServer', download_format = 'geojson',
+    local_file_path = 'data_sourcing/data_sources/ontario_municipal_boundaries/ontario_municipal_boundaries.geojson'
+WHERE source_key = 'ontario_municipal_boundaries';
+
+COMMIT;
+
+-- ============================================================================
 -- END OF MIGRATIONS
 -- ============================================================================

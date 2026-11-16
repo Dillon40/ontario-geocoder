@@ -261,7 +261,10 @@ async def fetch_arcgis_page_with_retry(
             new_last_oid = _extract_last_oid(features, oid_field, last_oid)
             return features, new_last_oid
 
-        except httpx.TimeoutException:
+        except (httpx.TimeoutException, ValueError):
+            # Some ArcGIS gateways return an HTML error with HTTP 200.
+            # Retry smaller pages; never interpret invalid JSON as an empty page.
+            params['resultRecordCount'] = str(max(1, int(params['resultRecordCount']) // 2))
             retries += 1
             wait_time = min(backoff, backoff_max)
             backoff *= 2

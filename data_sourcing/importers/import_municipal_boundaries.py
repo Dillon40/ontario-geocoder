@@ -87,7 +87,13 @@ def import_municipal_boundaries(shapefile_path: str, table_name: str = 'lower_mu
         #   MUNICIPA_6 = Type prefix (e.g., "TOWNSHIP OF")
         #   MUNICIPA_8 = Short English name (e.g., "ARMOUR")
         #   UPPER_TI_1 = Upper tier name (for lower tier municipalities)
-        column_mapping = {}
+        column_mapping = {
+            'MUNICIPAL_TYPE': 'tier_type',
+            'MUNICIPAL_NAME': 'name',
+            'MUNICIPAL_NAME_SHORTFORM': 'short_name',
+            'UPPER_TIER_MUNICIPALITY': 'upper_tier_name',
+        }
+        column_mapping = {k: v for k, v in column_mapping.items() if k in gdf.columns}
 
         # Map known truncated column names from Ontario LIO shapefile
         col_names = [col.upper() for col in gdf.columns]
@@ -121,6 +127,11 @@ def import_municipal_boundaries(shapefile_path: str, table_name: str = 'lower_mu
         if column_mapping:
             print(f"\nRenaming columns: {column_mapping}")
             gdf = gdf.rename(columns=column_mapping)
+
+        required = {'municipal_id', 'name', 'short_name', 'tier_type'}
+        if not required.issubset(gdf.columns) or gdf.empty:
+            raise ValueError(f'Municipal boundary schema missing {required - set(gdf.columns)} or empty')
+        gdf.geometry = gdf.geometry.make_valid()
 
         # Connect to database
         print(f"\nConnecting to database...")
