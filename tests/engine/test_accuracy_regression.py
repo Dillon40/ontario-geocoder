@@ -34,7 +34,7 @@ default test suite:
 
     DB_PASSWORD=... DB_HOST=... DB_NAME=... DB_USER=... \\
     GOOGLE_API_ENABLED=true GOOGLE_GEOCODING_API_KEY=... \\
-    .venv/bin/python -m pytest scripts/test_accuracy_regression.py -v -s
+    .venv/bin/python -m pytest tests/engine/test_accuracy_regression.py -m integration -v -s
 
 Optional env vars:
     ACCURACY_SAMPLE_SIZE   Number of benchmark addresses to sample for the
@@ -68,7 +68,7 @@ from urllib.parse import urlencode
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 BENCHMARK_FILE = PROJECT_ROOT / "2025_11_27_toronto_data_scrape_5000_properties.json"

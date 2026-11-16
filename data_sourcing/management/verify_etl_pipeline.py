@@ -13,10 +13,10 @@ Creates a fresh database, runs the full import pipeline, and compares
 table-by-table against the production database using server-side MD5 hashes.
 
 Usage:
-    uv run scripts/verify_etl_pipeline.py
-    uv run scripts/verify_etl_pipeline.py --source guelph_addresses --keep-verify-db
-    uv run scripts/verify_etl_pipeline.py --full-download
-    uv run scripts/verify_etl_pipeline.py --skip-etl --verbose
+    uv run python data_sourcing/management/verify_etl_pipeline.py
+    uv run python data_sourcing/management/verify_etl_pipeline.py --source guelph_addresses --keep-verify-db
+    uv run python data_sourcing/management/verify_etl_pipeline.py --full-download
+    uv run python data_sourcing/management/verify_etl_pipeline.py --skip-etl --verbose
 """
 
 import argparse
@@ -33,7 +33,7 @@ from typing import Optional
 
 # Project paths
 SCRIPT_DIR = Path(__file__).parent
-PROJECT_ROOT = SCRIPT_DIR.parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from dotenv import load_dotenv
@@ -1448,19 +1448,19 @@ async def main():
         epilog="""
 Examples:
   # Smoke test with one source
-  uv run scripts/verify_etl_pipeline.py --source guelph_addresses --keep-verify-db
+  uv run python data_sourcing/management/verify_etl_pipeline.py --source guelph_addresses --keep-verify-db
 
   # Full verification (all sources, import-only)
-  uv run scripts/verify_etl_pipeline.py
+  uv run python data_sourcing/management/verify_etl_pipeline.py
 
   # Resume after a partial run (imports only sources not yet completed)
-  uv run scripts/verify_etl_pipeline.py --resume
+  uv run python data_sourcing/management/verify_etl_pipeline.py --resume
 
   # Re-compare without re-running ETL
-  uv run scripts/verify_etl_pipeline.py --skip-etl --verbose
+  uv run python data_sourcing/management/verify_etl_pipeline.py --skip-etl --verbose
 
   # Quick count-only check
-  uv run scripts/verify_etl_pipeline.py --quick
+  uv run python data_sourcing/management/verify_etl_pipeline.py --quick
         """
     )
     parser.add_argument(

@@ -246,7 +246,7 @@ addresses are shown.
 
 ## Accuracy benchmarking
 
-`scripts/test_accuracy_regression.py` replays a sample of a benchmark address set through the
+`tests/engine/test_accuracy_regression.py` replays a sample of a benchmark address set through the
 live Tier 2 matcher and checks accuracy against pinned thresholds. It compares this service's
 coordinates against Google's forward-geocoding API purely as an offline, external ground truth —
 this is unrelated to request-time geocoding, which never calls Google or any other external API.

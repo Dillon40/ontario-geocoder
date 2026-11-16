@@ -70,7 +70,7 @@ for the coverage tradeoff and upgrade behavior.
 | `make test` | Run the full test suite (`uv run pytest`) |
 | `make test-parser` | Run `tests/engine/test_address_parser.py` only |
 | `make test-transformers` | Run `tests/data_sourcing/transformers/` only |
-| `make verify` | Run `scripts/verify_etl_pipeline.py --diff`, comparing a verify DB against prod |
+| `make verify` | Run `data_sourcing/management/verify_etl_pipeline.py --diff`, comparing a verify DB against prod |
 | `make verify-quick` | Count-only verification, no hash comparison |
 | `make verify-skip-etl` | Re-compare an existing verify DB without re-running the ETL |
 
@@ -293,7 +293,7 @@ uv run python database/run_migrations.py --force N   # force re-apply migration 
 live geocoding path: it reverse-geocodes this service's own coordinates through Google's API and
 checks whether the returned address matches the original. `GOOGLE_GEOCODING_API_KEY` /
 `GOOGLE_API_ENABLED` are one-off env vars read only by this script and by
-`scripts/test_accuracy_regression.py` (see "Accuracy benchmarking" in the root
+`tests/engine/test_accuracy_regression.py` (see "Accuracy benchmarking" in the root
 [README](../README.md)) — set them inline rather than adding them to `.env`.
 
 ```bash

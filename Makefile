@@ -168,15 +168,15 @@ test-transformers: ## Run transformer tests
 
 .PHONY: verify
 verify: ## Run ETL verification (compare verify DB vs prod)
-	uv run python scripts/verify_etl_pipeline.py --diff --report etl_verification_report.txt
+	uv run python data_sourcing/management/verify_etl_pipeline.py --diff --report etl_verification_report.txt
 
 .PHONY: verify-quick
 verify-quick: ## Quick count-only verification (no hash comparison)
-	uv run python scripts/verify_etl_pipeline.py --quick
+	uv run python data_sourcing/management/verify_etl_pipeline.py --quick
 
 .PHONY: verify-skip-etl
 verify-skip-etl: ## Re-compare existing verify DB without re-running ETL
-	uv run python scripts/verify_etl_pipeline.py --skip-etl --diff --report etl_verification_report.txt
+	uv run python data_sourcing/management/verify_etl_pipeline.py --skip-etl --diff --report etl_verification_report.txt
 
 # ---------------------------------------------------------------------------
 # Utilities
