@@ -110,6 +110,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 )
             )
 
+        # Record the validated identity even if permission is denied, so outer
+        # access logging can distinguish a known key from unauthenticated traffic.
+        request.state.api_key = key_data
+
         # Check permissions for this endpoint
         if not self._check_permissions(request, key_data):
             logger.warning(
@@ -123,9 +127,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     'API key does not have permission for this endpoint.'
                 )
             )
-
-        # Store validated key data in request state
-        request.state.api_key = key_data
 
         # Continue to next handler
         response = await call_next(request)

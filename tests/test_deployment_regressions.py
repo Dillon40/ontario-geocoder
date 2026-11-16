@@ -44,6 +44,40 @@ def test_bigint_identifiers_normalized_before_response_and_cache():
     GeocodeResponse(**result)
 
 @pytest.mark.asyncio
+async def test_real_middleware_preflight_docs_errors_and_logging(caplog):
+    from api.main import app
+    from api.config import security_config
+    key={'id':999,'name':'audit-test','permissions':{'geocode':True,'stats':True},'allowed_ips':[]}
+    origin=security_config.get_allowed_origins()[0]
+    if origin == '*': origin='http://localhost:13000'
+    with patch('api.middleware.auth.API_KEY_REQUIRED',True), \
+         patch('api.middleware.rate_limiter.RATE_LIMIT_ENABLED',False), \
+         patch('api.services.api_keys.validate_key',AsyncMock(return_value=key)):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='http://test') as c:
+            preflight=await c.options('/v1/geocode',headers={'Origin':origin,'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'x-api-key,content-type'})
+            assert preflight.status_code==200
+            assert preflight.headers['access-control-allow-origin'] in (origin,'*')
+            docs=await c.get('/openapi.json')
+            assert docs.status_code==200
+            assert 'APIKeyHeader' in docs.json()['components']['securitySchemes']
+            unauth=await c.get('/v1/stats')
+            assert unauth.status_code==401
+            assert unauth.headers['x-request-id']
+            assert unauth.headers['x-content-type-options']=='nosniff'
+            caplog.set_level('INFO',logger='geocoder.api')
+            with patch('api.main.geocoder.geocode',AsyncMock(return_value={'pin':{},'success':True})):
+                failed=await c.post('/v1/geocode',headers={'X-API-Key':'test','X-Request-ID':'audit-request'},json={'pin':'1'})
+            assert failed.status_code==500  # response validation, not route exception
+            assert failed.headers['x-request-id']=='audit-request'
+            assert failed.headers['x-frame-options']=='DENY'
+            assert 'audit-test' in caplog.text and 'audit-request' in caplog.text
+
+
+def test_server_preserves_socket_peer():
+    from api.worker import GeocoderWorker
+    assert GeocoderWorker.CONFIG_KWARGS['proxy_headers'] is False
+
+@pytest.mark.asyncio
 async def test_migrations_verify_null_unknown_and_changed_checksums():
     from database.run_migrations import verify_applied_checksums,parse_migrations
     migrations=parse_migrations((ROOT/'database/migrations.sql').read_text())

@@ -14,7 +14,6 @@ Tiered cascading geocoding system for Ontario property addresses.
 import os
 import sys
 import time
-import uuid
 import logging
 from datetime import datetime
 from contextlib import asynccontextmanager
@@ -184,25 +183,6 @@ app = FastAPI(
 
 
 # =============================================================================
-# Security Headers Middleware
-# =============================================================================
-
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Add security headers to all responses."""
-
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-
-        if security_config.SECURE_HEADERS_ENABLED:
-            response.headers['X-Content-Type-Options'] = 'nosniff'
-            response.headers['X-Frame-Options'] = 'DENY'
-            response.headers['X-XSS-Protection'] = '1; mode=block'
-            response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-
-        return response
-
-
-# =============================================================================
 # Request Body Size Limit Middleware
 # =============================================================================
 
@@ -234,54 +214,14 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
 
 
 # =============================================================================
-# Request ID Middleware
-# =============================================================================
-
-class RequestIDMiddleware(BaseHTTPMiddleware):
-    """Add unique request ID to each request for tracing."""
-
-    async def dispatch(self, request: Request, call_next):
-        # Get existing request ID or generate new one
-        request_id = request.headers.get(security_config.REQUEST_ID_HEADER)
-        if not request_id:
-            request_id = str(uuid.uuid4())
-
-        # Store in request state
-        request.state.request_id = request_id
-
-        # Process request
-        response = await call_next(request)
-
-        # Add to response headers
-        response.headers[security_config.REQUEST_ID_HEADER] = request_id
-
-        return response
-
-
-# =============================================================================
 # Add Middleware (order matters - first added is last executed)
 # =============================================================================
-
-# CORS middleware (outermost)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=security_config.get_allowed_origins(),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Request body size limit
 app.add_middleware(BodySizeLimitMiddleware)
 
-# Security headers
-app.add_middleware(SecurityHeadersMiddleware)
-
-# Request ID tracking
-app.add_middleware(RequestIDMiddleware)
-
 # Public paths that don't require authentication
-public_paths = ['/health', '/v1/health']
+public_paths = ['/health', '/v1/health', '/docs', '/docs/oauth2-redirect', '/openapi.json', '/redoc']
 
 # IP filtering (check after auth so we have API key data)
 app.add_middleware(IPFilterMiddleware, excluded_paths=public_paths)
@@ -293,18 +233,13 @@ app.add_middleware(RateLimitMiddleware, excluded_paths=public_paths)
 app.add_middleware(AuthMiddleware, excluded_paths=public_paths)
 
 
-# Request logging middleware
-@app.middleware("http")
-async def log_requests(request, call_next):
-    """Log all HTTP requests with request ID."""
-    request_id = getattr(request.state, 'request_id', 'unknown')
-    api_key = getattr(request.state, 'api_key', None)
-    key_name = api_key.get('name', 'N/A') if api_key else 'unauthenticated'
-
-    logger.info(f"[{request_id[:8]}] {request.method} {request.url.path} - Key: {key_name}")
-
-    response = await call_next(request)
-    return response
+# Last registered = outermost. CORS answers browser preflight before auth;
+# actual requests still pass through auth, rate limiting and IP restrictions.
+app.add_middleware(CORSMiddleware,
+                   allow_origins=security_config.get_allowed_origins(),
+                   allow_credentials=True, allow_methods=['*'], allow_headers=['*'])
+from .middleware.response_context import ResponseContextMiddleware
+app.add_middleware(ResponseContextMiddleware)
 
 
 @app.get("/", response_model=ServiceInfo)
@@ -338,7 +273,12 @@ async def root():
 # the root (deprecated aliases) so the existing IDX consumer keeps working.
 # =============================================================================
 
-router = APIRouter()
+from fastapi import Security
+from fastapi.security import APIKeyHeader
+
+# OpenAPI/Swagger security declaration. Enforcement remains in AuthMiddleware.
+router = APIRouter(dependencies=[Security(APIKeyHeader(
+    name=security_config.API_KEY_HEADER, auto_error=False))])
 
 
 @router.post(
@@ -478,6 +418,7 @@ async def geocode_batch(request: Request, body: BatchGeocodeRequest):
 @router.get(
     "/health",
     response_model=HealthResponse,
+    openapi_extra={"security": []},
     responses={
         503: {"model": HealthResponse, "description": "One or more backing services are down"},
     },
@@ -914,7 +855,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Pydantic/FastAPI request validation failures (422) use the envelope too."""
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=(400 if any(e['type'] == 'json_invalid' for e in exc.errors()) else 422),
         content=error_content(
             "validation_error",
             "Request validation failed",
@@ -941,5 +882,6 @@ if __name__ == "__main__":
         "api.main:app",
         host="0.0.0.0",
         port=port,
-        reload=os.getenv('ENV', 'production') == 'development'
+        reload=os.getenv('ENV', 'production') == 'development',
+        proxy_headers=False
     )

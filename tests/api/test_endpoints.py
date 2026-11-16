@@ -215,16 +215,14 @@ class TestGeocodeEndpoint:
 
     @pytest.mark.asyncio
     async def test_geocode_invalid_json(self, client):
-        """Malformed JSON body fails FastAPI's own request parsing/validation,
-        which returns 422 (not the route's own 400 "address_required" check —
-        that only runs once a body has successfully parsed to an empty dict)."""
+        """Malformed JSON is 400; parsed but invalid models remain 422."""
         response = await client.post(
             '/geocode',
             content=b'not json',
             headers={'content-type': 'application/json'}
         )
 
-        assert response.status_code == 422
+        assert response.status_code == 400
         data = response.json()
         assert data['error']['code'] == 'validation_error'
 

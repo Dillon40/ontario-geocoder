@@ -117,14 +117,14 @@ list-sources: ## List all confirmed data sources and their status
 
 .PHONY: dev
 dev: ## Start API server in development mode (auto-reload)
-	uv run uvicorn api.main:app --reload --host 0.0.0.0 --port 3000
+	uv run uvicorn api.main:app --no-proxy-headers --reload --host 0.0.0.0 --port 3000
 
 .PHONY: prod
 prod: ## Start API server in production mode (gunicorn)
 	uv run gunicorn api.main:app \
 		--bind 0.0.0.0:3000 \
 		--workers 4 \
-		--worker-class uvicorn.workers.UvicornWorker \
+		--worker-class api.worker.GeocoderWorker \
 		--timeout 120
 
 # ---------------------------------------------------------------------------

@@ -98,7 +98,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 CMD sh -c "exec gunicorn api.main:app \
     --bind 0.0.0.0:${PORT:-3000} \
     --workers ${GUNICORN_WORKERS:-4} \
-    --worker-class uvicorn.workers.UvicornWorker \
+    --worker-class api.worker.GeocoderWorker \
     --timeout 120 \
     --graceful-timeout 30 \
     --keep-alive 5 \
