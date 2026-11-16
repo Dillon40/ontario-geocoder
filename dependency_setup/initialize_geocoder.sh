@@ -100,9 +100,7 @@ fi
 echo -e "${GREEN}[3/5] Applying database schema...${NC}"
 if [ -f "$PROJECT_ROOT/database/schema.sql" ]; then
     PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
-        -f "$PROJECT_ROOT/database/schema.sql" 2>/dev/null || {
-        echo "  Schema already exists or was applied successfully"
-    }
+        -v ON_ERROR_STOP=1 -f "$PROJECT_ROOT/database/schema.sql"
     echo "  Schema applied"
 else
     echo -e "${YELLOW}  schema.sql not found${NC}"
@@ -112,13 +110,10 @@ fi
 echo -e "${GREEN}[4/5] Running database migrations...${NC}"
 if [ -f "$PROJECT_ROOT/database/run_migrations.py" ]; then
     cd "$PROJECT_ROOT"
-    uv run database/run_migrations.py
+    uv run python database/run_migrations.py --replay-unverified
 else
-    echo -e "${YELLOW}  run_migrations.py not found, running migrations.sql directly...${NC}"
-    if [ -f "$PROJECT_ROOT/database/migrations.sql" ]; then
-        PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
-            -f "$PROJECT_ROOT/database/migrations.sql" 2>/dev/null || true
-    fi
+    echo 'ERROR: database/run_migrations.py missing' >&2
+    exit 1
 fi
 
 # Step 5: Seed and optionally import data
@@ -126,7 +121,7 @@ if [ "$SKIP_DATA" = false ]; then
     echo -e "${GREEN}[5/5] Seeding data sources...${NC}"
     if [ -f "$PROJECT_ROOT/database/seed_data_sources.sql" ]; then
         PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
-            -f "$PROJECT_ROOT/database/seed_data_sources.sql" 2>/dev/null || true
+            -v ON_ERROR_STOP=1 -f "$PROJECT_ROOT/database/seed_data_sources.sql"
         echo "  Data sources seeded"
     else
         echo -e "${YELLOW}  seed_data_sources.sql not found${NC}"
@@ -136,7 +131,7 @@ if [ "$SKIP_DATA" = false ]; then
         echo ""
         echo "Importing data sources..."
         cd "$PROJECT_ROOT"
-        uv run data_sourcing/setup_data.py --all-confirmed --skip-manual
+        uv run python data_sourcing/setup_data.py --all-confirmed
     fi
 else
     echo -e "${YELLOW}[5/5] Skipping data setup${NC}"
@@ -151,13 +146,13 @@ echo "=========================================="
 # Show migration status
 if [ -f "$PROJECT_ROOT/database/run_migrations.py" ]; then
     cd "$PROJECT_ROOT"
-    uv run database/run_migrations.py --status
+    uv run python database/run_migrations.py --status
 fi
 
 echo ""
 echo "Next steps:"
 if [ "$IMPORT_DATA" = false ]; then
-    echo "  - Import data: uv run data_sourcing/setup_data.py --all-confirmed"
+    echo "  - Import data: uv run python data_sourcing/setup_data.py --all-confirmed"
 fi
 echo "  - Start API:   uv run uvicorn api.main:app --reload"
 echo "  - Run tests:   uv run pytest"

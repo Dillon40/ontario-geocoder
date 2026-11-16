@@ -129,7 +129,7 @@ echo ""
 echo -e "${GREEN}[4/5] Running database schema...${NC}"
 
 if [ -f "$PROJECT_DIR/database/schema.sql" ]; then
-    PGPASSWORD="$DB_PASSWORD" $PSQL_BIN -h localhost -U "$DB_USER" -d "$DB_NAME" -f "$PROJECT_DIR/database/schema.sql"
+    PGPASSWORD="$DB_PASSWORD" $PSQL_BIN -h localhost -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$PROJECT_DIR/database/schema.sql"
     echo "Schema created successfully"
 else
     echo -e "${RED}Error: database/schema.sql not found${NC}"
@@ -138,12 +138,9 @@ fi
 
 echo ""
 echo -e "${GREEN}[5/5] Running database migrations...${NC}"
-if [ -f "$PROJECT_DIR/database/migrations.sql" ]; then
-    PGPASSWORD="$DB_PASSWORD" $PSQL_BIN -h localhost -U "$DB_USER" -d "$DB_NAME" -f "$PROJECT_DIR/database/migrations.sql"
-    echo "Migrations completed successfully"
-else
-    echo -e "${YELLOW}⚠ No migrations.sql found - skipping${NC}"
-fi
+cd "$PROJECT_DIR"
+DB_HOST=localhost uv run python database/run_migrations.py --initialize --replay-unverified
+echo 'Tracked migrations and initial source metadata applied'
 
 echo ""
 echo "=========================================="

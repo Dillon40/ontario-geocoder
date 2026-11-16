@@ -7,7 +7,7 @@
 #
 # Prerequisites:
 #   1. Create .env file with production values (see .env.example)
-#   2. Run database migrations before first start
+#   2. Compose init runs tracked schema/migrations/seeds before API or ETL
 #
 # =============================================================================
 
@@ -67,6 +67,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health', timeout=5)"]
       interval: 30s
@@ -103,9 +105,7 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./database/migrations.sql:/docker-entrypoint-initdb.d/02-migrations.sql
-      - ./database/seed_data_sources.sql:/docker-entrypoint-initdb.d/03-seed.sql
+      # Application schema is initialized by the tracked init service, not raw SQL.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-geocoder} -d ${DB_NAME:-geocoder}"]
       interval: 10s
@@ -171,6 +171,24 @@ services:
   #   docker compose run --rm etl data_sourcing.setup_data --all-confirmed
   #   docker compose run --rm etl data_sourcing.importers.import_production_data
   # ---------------------------------------------------------------------------
+  init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "database/run_migrations.py", "--initialize", "--replay-unverified"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-geocoder}
+      DB_USER: ${DB_USER:-geocoder}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - geocoder-network
+    restart: "no"
+
   etl:
     build:
       context: .
@@ -187,6 +205,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      init:
+        condition: service_completed_successfully
     networks:
       - geocoder-network
     profiles:

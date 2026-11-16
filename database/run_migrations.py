@@ -136,20 +136,20 @@ async def apply_migration(conn: asyncpg.Connection, migration: dict) -> bool:
     start_time = datetime.now()
 
     try:
-        # Execute the migration SQL
-        await conn.execute(migration['sql'])
-
-        elapsed_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-
-        # Record the applied migration
-        await conn.execute("""
-            INSERT INTO schema_migrations
-                (migration_number, migration_name, checksum, execution_time_ms)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (migration_number) DO UPDATE SET
-                checksum = EXCLUDED.checksum,
-                execution_time_ms = EXCLUDED.execution_time_ms
-        """, migration['number'], migration['name'], migration['checksum'], elapsed_ms)
+        # Schema changes and their checksum must commit together. The file's
+        # outer BEGIN/COMMIT are replaced by the driver's transaction.
+        sql = migration['sql'].removeprefix('BEGIN;').removesuffix('COMMIT;')
+        async with conn.transaction():
+            await conn.execute(sql)
+            elapsed_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+            await conn.execute("""
+                INSERT INTO schema_migrations
+                    (migration_number, migration_name, checksum, execution_time_ms)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (migration_number) DO UPDATE SET
+                    checksum = EXCLUDED.checksum,
+                    execution_time_ms = EXCLUDED.execution_time_ms
+            """, migration['number'], migration['name'], migration['checksum'], elapsed_ms)
 
         return True
     except Exception as e:
@@ -164,8 +164,8 @@ async def verify_applied_checksums(conn: asyncpg.Connection,
     freshly recomputed checksum of its block text in migrations.sql.
 
     Returns a list of mismatch descriptions (empty list = all good).
-    Rows with NULL checksums (migration 13 back-seed of 1-13) are skipped,
-    as are applied migrations no longer present in the file.
+    Legacy NULL checksums and missing migration definitions are errors, not
+    silently verified history. Use --replay-unverified to replay legacy SQL.
     """
     rows = await conn.fetch(
         "SELECT migration_number, checksum FROM schema_migrations"
@@ -176,11 +176,11 @@ async def verify_applied_checksums(conn: asyncpg.Connection,
     for row in rows:
         stored = row['checksum']
         if stored is None:
-            # Back-seeded by migration 13 with NULL checksum; nothing to compare
+            mismatches.append(f"Migration {row['migration_number']}: unverified legacy checksum; use --replay-unverified")
             continue
         migration = by_number.get(row['migration_number'])
         if migration is None:
-            # Applied migration not present in file; cannot recompute
+            mismatches.append(f"Migration {row['migration_number']}: definition missing")
             continue
         if stored != migration['checksum']:
             mismatches.append(
@@ -232,6 +232,10 @@ async def main():
         '--force', type=int, metavar='N',
         help='Force re-apply migration N (use with caution)'
     )
+    parser.add_argument('--initialize', action='store_true',
+                        help='Initialize an empty database schema and seed sources after migrations')
+    parser.add_argument('--replay-unverified', action='store_true',
+                        help='Replay legacy migrations with NULL checksums (back up first)')
     args = parser.parse_args()
 
     # Parse migrations from file
@@ -261,8 +265,18 @@ async def main():
         sys.exit(1)
 
     try:
-        # Ensure tracking table exists
+        # Serialize migration processes, including Compose init and operator runs.
+        await conn.execute('SELECT pg_advisory_lock(719345002)')
+        if args.initialize and not await conn.fetchval("SELECT to_regclass('public.properties')"):
+            await conn.execute((MIGRATIONS_FILE.parent / 'schema.sql').read_text())
         await ensure_migrations_table(conn)
+        rows = await conn.fetch('SELECT migration_number, checksum FROM schema_migrations')
+        unverified = {r['migration_number'] for r in rows if r['checksum'] is None}
+        problems = await verify_applied_checksums(conn, migrations)
+        if args.replay_unverified:
+            problems = [p for p in problems if 'unverified legacy checksum' not in p]
+        if problems:
+            raise RuntimeError('\n'.join(problems))
 
         # Status mode
         if args.status:
@@ -271,7 +285,8 @@ async def main():
 
         # Get pending migrations
         applied = await get_applied_migrations(conn)
-        pending = [m for m in migrations if m['number'] not in applied]
+        pending = [m for m in migrations if m['number'] not in applied
+                   or (args.replay_unverified and m['number'] in unverified)]
 
         # Force mode - re-apply specific migration
         if args.force:
@@ -283,6 +298,8 @@ async def main():
             print(f"Force re-applying Migration {args.force}")
 
         if not pending:
+            if args.initialize and not await conn.fetchval('SELECT count(*) FROM data_sources'):
+                await conn.execute((MIGRATIONS_FILE.parent / 'seed_data_sources.sql').read_text())
             print("All migrations already applied.")
             mismatches = await verify_applied_checksums(conn, migrations)
             if mismatches:
@@ -317,6 +334,8 @@ async def main():
         if failed:
             sys.exit(1)
 
+        if args.initialize and not await conn.fetchval('SELECT count(*) FROM data_sources'):
+            await conn.execute((MIGRATIONS_FILE.parent / 'seed_data_sources.sql').read_text())
         print(f"\nAll {len(pending)} migration(s) applied successfully")
 
         # Verify stored checksums of all applied migrations against freshly

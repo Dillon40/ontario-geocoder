@@ -7,6 +7,17 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
+@pytest.mark.asyncio
+async def test_migrations_verify_null_unknown_and_changed_checksums():
+    from database.run_migrations import verify_applied_checksums,parse_migrations
+    migrations=parse_migrations((ROOT/'database/migrations.sql').read_text())
+    conn=AsyncMock()
+    conn.fetch.return_value=[{'migration_number':1,'checksum':None}, {'migration_number':2,'checksum':'wrong'}, {'migration_number':999,'checksum':'x'}]
+    errors=await verify_applied_checksums(conn,migrations)
+    assert len(errors)==3
+    assert any('unverified' in e for e in errors)
+    assert any('missing' in e for e in errors)
+
 def test_native_env_keeps_credentials_private_and_existing_file(tmp_path):
     import os, shutil, subprocess
     scripts=tmp_path/'dependency_setup'; scripts.mkdir()

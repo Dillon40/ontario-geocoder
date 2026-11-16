@@ -47,19 +47,15 @@ setup-python: ## Install uv and sync Python dependencies
 
 .PHONY: db-schema
 db-schema: ## Apply schema.sql (idempotent)
-	$(PSQL) -f database/schema.sql
+	$(PSQL) -v ON_ERROR_STOP=1 -f database/schema.sql
 
 .PHONY: db-migrate
 db-migrate: ## Run all database migrations
-	@if [ -f database/run_migrations.py ]; then \
-		uv run database/run_migrations.py; \
-	else \
-		$(PSQL) -f database/migrations.sql; \
-	fi
+	uv run python database/run_migrations.py
 
 .PHONY: db-seed
 db-seed: ## Seed the data_sources table
-	$(PSQL) -f database/seed_data_sources.sql
+	$(PSQL) -v ON_ERROR_STOP=1 -f database/seed_data_sources.sql
 
 .PHONY: db-init
 db-init: db-schema db-migrate db-seed ## Schema + migrations + seed (for existing database)
