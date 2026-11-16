@@ -34,6 +34,15 @@ async def test_direction_and_deleted_constraints_before_limit(table,column):
         assert set(params[0]) >= {'WEST','W'}
         assert sql.index('is_deleted') < sql.index('LIMIT')
 
+def test_bigint_identifiers_normalized_before_response_and_cache():
+    from engine.geocoder import calculate_enhanced_confidence
+    from api.models import GeocodeResponse
+    row={'pin':712880109,'gpid':2000001751,'match_tier':1,'match_method':'pin_lookup'}
+    result=calculate_enhanced_confidence(row,{})
+    assert result['pin']=='712880109'
+    assert result['gpid']=='2000001751'
+    GeocodeResponse(**result)
+
 @pytest.mark.asyncio
 async def test_migrations_verify_null_unknown_and_changed_checksums():
     from database.run_migrations import verify_applied_checksums,parse_migrations

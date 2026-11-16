@@ -151,6 +151,11 @@ async def match_nar_data(address_components: Dict[str, Any]) -> Optional[Dict[st
 
 def calculate_enhanced_confidence(result: Dict[str, Any], address_components: Dict[str, Any]) -> Dict[str, Any]:
     """Calculate enhanced confidence score."""
+    # Public identifiers are strings in both single and batch responses. asyncpg
+    # returns BIGINTs as ints; normalize before caching/serializing either route.
+    for field in ('pin', 'gpid'):
+        if result.get(field) is not None:
+            result[field] = str(result[field])
     base_confidence = result.get('confidence', 0.5)
 
     # Add confidence breakdown
@@ -198,8 +203,8 @@ async def geocode(address_input: Any) -> Dict[str, Any]:
         address_hash = generate_address_hash(address_components)
 
         # Check cache
-        # Ignore cached matches to retired properties.
-        cache_key = f'geocode:v2:{address_hash}'
+        # Ignore retired matches and legacy numeric identifier responses.
+        cache_key = f'geocode:v2_ids:{address_hash}'
         cached = await cache.get(cache_key)
 
         if cached:
