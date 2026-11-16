@@ -314,6 +314,7 @@ def generate_address_hash(components: Dict[str, Any]) -> str:
         str(components.get('pin') or ''),
         str(components.get('street_number') or ''),
         str(components.get('civic_no_suffix') or ''),
+        str(components.get('unit_no') or ''),
         str(components.get('street_name') or ''),
         str(components.get('street_suffix_normalized') or components.get('street_suffix') or ''),
         str(components.get('street_direction_normalized') or components.get('street_direction') or ''),

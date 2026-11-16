@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from . import config, database
 from .address_parser import normalize_street_suffix, normalize_direction
+from .address_formatter import format_property_address
 
 
 async def query_candidates(query, params, components):
@@ -208,9 +209,9 @@ def disambiguate(results: List[Any], input_components: Dict[str, Any], table_typ
         input_unit = input_components.get('unit_number') or input_components.get('unit_no')
         if input_unit:
             if table_type == 'properties':
-                row_unit = row.get('unit_number')
-            else:  # NAR
-                row_unit = row.get('civic_no_suffix')
+                row_unit = row.get('unit_no')
+            else:  # NAR: apartment/unit is distinct from the civic-number suffix
+                row_unit = row.get('apt_no_label')
 
             if row_unit and str(input_unit).upper() == str(row_unit).upper():
                 score += 15
@@ -287,7 +288,7 @@ def build_result_from_properties_row(row: Any, layer: int, metadata: MatchMetada
     return {
         'latitude': float(row['latitude']),
         'longitude': float(row['longitude']),
-        'matched_address': row['full_address'],
+        'matched_address': format_property_address(row),
         'source': f"municipal_{row['source_dataset']}" if row.get('source_dataset') else 'municipal_match',
         'confidence': LAYER_CONFIDENCE.get(layer, 0.5),
         'match_tier': 2,

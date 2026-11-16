@@ -14,6 +14,7 @@ logger = logging.getLogger('geocoder.matching')
 from . import database, cache
 from .geographic_validator import get_validator
 from .address_parser import parse_address, generate_address_hash, build_full_address
+from .address_formatter import format_property_address
 from .layered_matcher import match_municipal_layered, match_nar_layered
 
 
@@ -60,7 +61,7 @@ async def lookup_by_pin(address_components: Dict[str, Any]) -> Optional[Dict[str
         return {
             'latitude': float(row['latitude']),
             'longitude': float(row['longitude']),
-            'matched_address': row['full_address'],
+            'matched_address': format_property_address(row),
             'source': f"municipal_{row['source_dataset']}" if row['source_dataset'] else 'municipal_match',
             'confidence': 1.0,
             'match_tier': 1,
@@ -203,9 +204,8 @@ async def geocode(address_input: Any) -> Dict[str, Any]:
         address_hash = generate_address_hash(address_components)
 
         # Check cache
-        # v3 excludes Middlesex municipal data, including previously cached hits.
-        # Keep auth/rate-limit namespaces intact during this policy transition.
-        cache_key = f'geocode:v3:{address_hash}'
+        # Ignore old null labels and unit-ambiguous cached matches.
+        cache_key = f'geocode:v4:{address_hash}'
         cached = await cache.get(cache_key)
 
         if cached:

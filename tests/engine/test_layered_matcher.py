@@ -33,7 +33,7 @@ def make_property_row(**overrides):
         'street_name': 'Queen',
         'street_suffix': 'St',
         'street_direction': 'W',
-        'unit_number': None,
+        'unit_no': None,
         'civic_no_suffix': None,
         'city': 'Toronto',
         'province': 'ON',
@@ -129,9 +129,9 @@ class TestDisambiguateTieHandling:
 
     def test_tie_same_coordinates_returns_first(self):
         """Condo units in one building: identical coords, any row is correct."""
-        unit_1 = make_property_row(id=1, unit_number='101',
+        unit_1 = make_property_row(id=1, unit_no='101',
                                    latitude=43.6500, longitude=-79.3800)
-        unit_2 = make_property_row(id=2, unit_number='102',
+        unit_2 = make_property_row(id=2, unit_no='102',
                                    latitude=43.6500, longitude=-79.3800)
         # Both rows score identically (postal match on each)
         components = {'postal_code': 'M5H2N2'}
