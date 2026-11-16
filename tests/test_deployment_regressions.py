@@ -13,6 +13,26 @@ def test_mapping_identity_and_confirmed_sources():
     assert mappings['hamilton']['field_mappings']['street_number'] == 'NUMBER_COMPLETE'
     assert mappings['middlesex_county']['field_mappings']['property_id'] == 'GlobalID'
 
+@pytest.mark.parametrize('direction', ['West', 'W', 'W.'])
+def test_free_text_full_suffix_and_direction(direction):
+    from engine.address_parser import parse_address
+    result = parse_address({'address': f'100 Queen Street {direction}, Toronto, ON'})
+    assert result['street_name'] == 'Queen'
+    assert result['street_suffix'] == 'Street'
+    assert result['street_direction_normalized'] == 'West'
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('table,column', [('properties','street_direction'), ('nar_addresses a','a.official_street_dir')])
+async def test_direction_constraints_before_limit(table,column):
+    from engine.layered_matcher import query_candidates
+    with patch('engine.layered_matcher.database.query', AsyncMock(return_value=[])) as query:
+        await query_candidates(f'SELECT * FROM {table} WHERE TRUE ORDER BY id LIMIT 10', [], {'street_direction':'West'})
+        sql, params = query.call_args.args
+        assert column in sql
+        assert 'ANY($1::text[])' in sql
+        assert set(params[0]) >= {'WEST','W'}
+        assert sql.index(column) < sql.index('LIMIT')
+
 @pytest.mark.asyncio
 async def test_migrations_verify_null_unknown_and_changed_checksums():
     from database.run_migrations import verify_applied_checksums,parse_migrations

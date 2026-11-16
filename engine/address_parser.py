@@ -150,15 +150,20 @@ def parse_address_string(address_string: str) -> Dict[str, Optional[str]]:
             components['street_number'] = street_parts.pop(0)
 
         # Last token might be direction (strip dots before checking)
-        if street_parts and street_parts[-1].upper().rstrip('.') in direction_mappings['abbreviations']:
-            components['street_direction'] = street_parts.pop()
+        direction_tokens = {k.lower() for k in direction_mappings['abbreviations']}
+        direction_tokens.update(v.lower() for v in direction_mappings['abbreviations'].values())
+        direction_tokens.update(v.lower() for values in direction_mappings['variants'].values() for v in values)
+        # Keep a name such as "North" intact when it is the only street token.
+        if len(street_parts) > 1 and street_parts[-1].lower().rstrip('.') in direction_tokens:
+            components['street_direction'] = street_parts.pop().rstrip('.')
 
         # Second to last might be suffix (strip dots before checking)
         if street_parts:
             potential_suffix = street_parts[-1]
             cleaned_upper = potential_suffix.upper().rstrip('.')
             cleaned_lower = potential_suffix.lower().rstrip('.')
-            if (cleaned_upper in street_type_mappings['abbreviations'] or
+            if len(street_parts) > 1 and (cleaned_upper in street_type_mappings['abbreviations'] or
+                cleaned_lower in {v.lower() for v in street_type_mappings['abbreviations'].values()} or
                 cleaned_lower in [v for variants in street_type_mappings['variants'].values() for v in variants]):
                 components['street_suffix'] = street_parts.pop()
 

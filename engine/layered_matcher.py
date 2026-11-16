@@ -20,11 +20,37 @@ Layers:
 Confidence decreases with each layer, reflecting reduced certainty.
 """
 import math
+import re
 from typing import Optional, Dict, Any, List, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 from . import config, database
 from .address_parser import normalize_street_suffix, normalize_direction
+
+
+async def query_candidates(query, params, components):
+    """Apply non-relaxable identity constraints before SQL LIMIT in every layer.
+
+    Postal/city constraints may be relaxed, but an explicitly opposite street
+    direction must never win just because it is the only remaining candidate.
+    """
+    nar = 'FROM nar_addresses' in query
+    prefix = 'a.' if nar else ''
+    conditions = ['TRUE']
+    params = list(params)
+    direction = components.get('street_direction_normalized') or components.get('street_direction')
+    if direction:
+        canonical = normalize_direction(direction)
+        from .address_parser import direction_mappings
+        variants = {canonical.upper(), str(direction).upper().rstrip('.')}
+        variants.update(k.upper() for k, v in direction_mappings['abbreviations'].items()
+                        if normalize_direction(v) == canonical)
+        column = 'a.official_street_dir' if nar else 'street_direction'
+        params.append(sorted(variants))
+        conditions.append(f"({column} IS NULL OR btrim({column}) = '' OR "
+                          f"UPPER(REPLACE({column}, '.', '')) = ANY(${len(params)}::text[]))")
+    query = re.sub(r'\bWHERE\b', 'WHERE ' + ' AND '.join(conditions) + ' AND', query, count=1)
+    return await database.query(query, params)
 
 
 class LayerResult(Enum):
@@ -467,7 +493,7 @@ class LayeredMatcher:
             # Deterministic ordering: without it, LIMIT can drop candidates arbitrarily
             query += ' ORDER BY id LIMIT 10'
 
-            results = await database.query(query, params)
+            results = await query_candidates(query, params, components)
 
             if not results:
                 self.metadata.layers_tried.append(LayerAttempt(
@@ -529,7 +555,7 @@ class LayeredMatcher:
             '''
             params = [postal_code, street_number, street_name]
 
-            results = await database.query(query, params)
+            results = await query_candidates(query, params, components)
 
             if not results:
                 self.metadata.layers_tried.append(LayerAttempt(
@@ -598,7 +624,7 @@ class LayeredMatcher:
             '''
             params = [fsa_code, street_number, street_name, city]
 
-            results = await database.query(query, params)
+            results = await query_candidates(query, params, components)
 
             if not results:
                 self.metadata.layers_tried.append(LayerAttempt(
@@ -663,7 +689,7 @@ class LayeredMatcher:
             '''
             params = [f"{postal_zone}%", street_number, street_name, input_fsa]
 
-            results = await database.query(query, params)
+            results = await query_candidates(query, params, components)
 
             if not results:
                 self.metadata.layers_tried.append(LayerAttempt(
@@ -730,7 +756,7 @@ class LayeredMatcher:
             '''
             params = [street_number, street_name, city]
 
-            results = await database.query(query, params)
+            results = await query_candidates(query, params, components)
 
             # Civic suffix fallback: if no results and input has no suffix, try matching with suffix variants
             if not results:
@@ -753,7 +779,7 @@ class LayeredMatcher:
                         ORDER BY civic_no_suffix, id
                         LIMIT 10
                     '''
-                    results = await database.query(fallback_query, params)
+                    results = await query_candidates(fallback_query, params, components)
                     if results:
                         self.metadata.civic_suffix_fallback = True
 
@@ -817,7 +843,7 @@ class LayeredMatcher:
             '''
             params = [f"{postal_zone}%", street_number, street_name]
 
-            results = await database.query(query, params)
+            results = await query_candidates(query, params, components)
 
             if not results:
                 self.metadata.layers_tried.append(LayerAttempt(
@@ -912,7 +938,7 @@ class LayeredMatcher:
             '''
             params = [street_number, city, street_name]
 
-            results = await database.query(query, params)
+            results = await query_candidates(query, params, components)
 
             # Civic suffix fallback: if no results and input has no suffix, try matching with suffix variants
             if not results:
@@ -936,7 +962,7 @@ class LayeredMatcher:
                         ORDER BY similarity(UPPER(street_name), UPPER($3)) DESC, civic_no_suffix, id
                         LIMIT 10
                     '''
-                    results = await database.query(fallback_query, params)
+                    results = await query_candidates(fallback_query, params, components)
                     if results:
                         self.metadata.civic_suffix_fallback = True
 
@@ -1126,7 +1152,7 @@ class LayeredNARMatcher:
             # Deterministic ordering: without it, LIMIT can drop candidates arbitrarily
             query += ' ORDER BY a.id LIMIT 10'
 
-            results = await database.query(query, params)
+            results = await query_candidates(query, params, components)
 
             if not results:
                 self.metadata.layers_tried.append(LayerAttempt(
@@ -1190,7 +1216,7 @@ class LayeredNARMatcher:
             '''
             params = [postal_code, street_number, street_name]
 
-            results = await database.query(query, params)
+            results = await query_candidates(query, params, components)
 
             if not results:
                 self.metadata.layers_tried.append(LayerAttempt(
@@ -1255,7 +1281,7 @@ class LayeredNARMatcher:
             '''
             params = [fsa_code, street_number, street_name, city]
 
-            results = await database.query(query, params)
+            results = await query_candidates(query, params, components)
 
             if not results:
                 self.metadata.layers_tried.append(LayerAttempt(
@@ -1324,7 +1350,7 @@ class LayeredNARMatcher:
             '''
             params = [f"{postal_zone}%", street_number, street_name, input_fsa]
 
-            results = await database.query(query, params)
+            results = await query_candidates(query, params, components)
 
             if not results:
                 self.metadata.layers_tried.append(LayerAttempt(
@@ -1388,7 +1414,7 @@ class LayeredNARMatcher:
             '''
             params = [street_number, street_name, city]
 
-            results = await database.query(query, params)
+            results = await query_candidates(query, params, components)
 
             # Civic suffix fallback: if no results and input has no suffix, try matching with suffix variants
             if not results:
@@ -1407,7 +1433,7 @@ class LayeredNARMatcher:
                         ORDER BY a.civic_no_suffix, a.id
                         LIMIT 10
                     '''
-                    results = await database.query(fallback_query, params)
+                    results = await query_candidates(fallback_query, params, components)
                     if results:
                         self.metadata.civic_suffix_fallback = True
 
@@ -1474,7 +1500,7 @@ class LayeredNARMatcher:
             '''
             params = [f"{postal_zone}%", street_number, street_name]
 
-            results = await database.query(query, params)
+            results = await query_candidates(query, params, components)
 
             if not results:
                 self.metadata.layers_tried.append(LayerAttempt(
@@ -1561,7 +1587,7 @@ class LayeredNARMatcher:
             '''
             params = [street_number, city, street_name]
 
-            results = await database.query(query, params)
+            results = await query_candidates(query, params, components)
 
             # Civic suffix fallback: if no results and input has no suffix, try matching with suffix variants
             if not results:
@@ -1581,7 +1607,7 @@ class LayeredNARMatcher:
                         ORDER BY similarity(UPPER(a.official_street_name), UPPER($3)) DESC, a.civic_no_suffix, a.id
                         LIMIT 10
                     '''
-                    results = await database.query(fallback_query, params)
+                    results = await query_candidates(fallback_query, params, components)
                     if results:
                         self.metadata.civic_suffix_fallback = True
 

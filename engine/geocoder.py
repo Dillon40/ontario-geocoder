@@ -198,7 +198,8 @@ async def geocode(address_input: Any) -> Dict[str, Any]:
         address_hash = generate_address_hash(address_components)
 
         # Check cache
-        cache_key = f'geocode:{address_hash}'
+        # Ignore cached results produced before strict direction filtering.
+        cache_key = f'geocode:v1:{address_hash}'
         cached = await cache.get(cache_key)
 
         if cached:
