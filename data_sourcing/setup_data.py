@@ -597,10 +597,13 @@ Examples:
             source_info = await get_source_info(conn, source_key)
             if source_info and source_info['status'] == 'confirmed':
                 all_sources.append(source_info)
+            elif args.source and source_info:
+                print(f"Source '{source_key}' is {source_info['status']}; not eligible for import. "
+                      "Consent/force flags do not override exclusion.")
 
         if not all_sources:
             print("No confirmed sources found to process.")
-            sys.exit(0)
+            sys.exit(1)
 
         # Filter by skip conditions
         sources_to_process = []

@@ -147,6 +147,70 @@ async def test_row_failures_are_not_success_even_for_legacy_completed_history():
         assert '1 rows failed' in result.error_message
 
 
+def test_fresh_seed_contains_repaired_endpoints():
+    sql=(ROOT/'database/seed_data_sources.sql').read_text()
+    assert 'MiddlesexCountyAddressPoints/FeatureServer/0' in sql
+    assert 'Digital_boundary_files/MapServer/14' in sql
+    assert 'data_sourcing/data_sources/fsa_boundaries/fsa_boundaries.geojson' in sql
+    assert 'commercial permission unverified' in sql
+    assert 'commercial_use_allowed = NULL' in sql
+    assert "'Middlesex County - Municipal Address Points',\n    'blocked'" in sql
+    assert "status = 'blocked'" in sql
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('source', ['middlesex_county', 'middlesex_county_addresses'])
+async def test_direct_import_cannot_revive_blocked_source(source):
+    from data_sourcing.db_utils import ensure_source_import_allowed
+    conn=AsyncMock()
+    conn.fetch.return_value=[{'source_key':'middlesex_county_addresses','status':'blocked'}]
+    with pytest.raises(RuntimeError,match='import is prohibited'):
+        await ensure_source_import_allowed(conn,source)
+    assert conn.fetch.call_args.args[1]==source
+
+@pytest.mark.asyncio
+async def test_direct_import_entrypoint_enforces_policy_before_file_or_hash_checks():
+    from data_sourcing.importers import import_production_data as importer
+    conn=AsyncMock()
+    conn.fetch.return_value=[{'source_key':'middlesex_county_addresses','status':'blocked'}]
+    with patch.object(importer,'get_db_connection',AsyncMock(return_value=conn)):
+        with pytest.raises(RuntimeError,match='import is prohibited'):
+            await importer.import_geojson('/nonexistent.geojson','middlesex_county',batch_size=1000,force=True)
+    conn.close.assert_awaited_once()
+
+@pytest.mark.asyncio
+async def test_force_and_consent_cannot_override_source_exclusion():
+    from data_sourcing import setup_data
+    conn=AsyncMock()
+    source={'source_key':'middlesex_county_addresses','status':'blocked'}
+    with patch('sys.argv',['setup_data','--source','middlesex_county_addresses','--force','--accept-non-commercial']), \
+         patch.object(setup_data,'get_db_connection',AsyncMock(return_value=conn)), \
+         patch.object(setup_data,'check_data_sources_seeded',AsyncMock(return_value=True)), \
+         patch.object(setup_data,'get_source_info',AsyncMock(return_value=source)), \
+         patch.object(setup_data,'run_download_script') as download:
+        with pytest.raises(SystemExit) as error:
+            await setup_data.main()
+        assert error.value.code==1
+        download.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_downloader_requires_confirmed_source_even_by_explicit_key():
+    from data_sourcing.downloaders.download_data_sources import get_data_sources
+    conn=AsyncMock(); conn.fetch.return_value=[]
+    assert await get_data_sources(conn,source_key='middlesex_county_addresses')==[]
+    sql,key,status=conn.fetch.call_args.args
+    assert 'status = $2' in sql and status=='confirmed'
+
+def test_exclusion_migration_preserves_nar_and_audit_rows():
+    from database.run_migrations import parse_migrations
+    migration=next(m for m in parse_migrations((ROOT/'database/migrations.sql').read_text()) if m['number']==37)
+    sql=migration['sql']
+    assert "status = 'blocked'" in sql
+    assert 'UPDATE properties SET is_deleted = TRUE' in sql
+    assert 'DELETE FROM properties' not in sql
+    assert 'UPDATE nar_addresses' not in sql and 'DELETE FROM nar_addresses' not in sql
+
+
 def test_identity_reconciliation_refuses_duplicate_ids(tmp_path):
     from data_sourcing.management.reconcile_property_ids import expected_ids
     f=tmp_path/'addresses.json'

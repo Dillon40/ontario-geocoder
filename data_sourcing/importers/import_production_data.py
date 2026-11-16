@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from data_sourcing.importers.import_tracker import ImportTracker
 from data_sourcing.importers.import_utils import FileHashManager, StaleRecordDetector, PropertyIdGenerator
 from data_sourcing.transformers import TransformPipeline
-from data_sourcing.db_utils import get_db_connection, get_db_pool
+from data_sourcing.db_utils import get_db_connection, get_db_pool, ensure_source_import_allowed
 
 # File size threshold for streaming mode (100MB)
 STREAMING_THRESHOLD_MB = 100
@@ -1013,6 +1013,13 @@ async def import_geojson(file_path: str, source_name: str, batch_size: int,
     print(f'File: {file_path}')
     print(f'Source dataset: {source_name}')
     print(f'Batch size: {batch_size}\n')
+
+    # Enforce exclusions before even the unchanged-file shortcut or --force.
+    policy_conn = await get_db_connection()
+    try:
+        await ensure_source_import_allowed(policy_conn, source_name)
+    finally:
+        await policy_conn.close()
 
     # Check if file exists
     if not Path(file_path).exists():

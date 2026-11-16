@@ -203,8 +203,9 @@ async def geocode(address_input: Any) -> Dict[str, Any]:
         address_hash = generate_address_hash(address_components)
 
         # Check cache
-        # Ignore retired matches and legacy numeric identifier responses.
-        cache_key = f'geocode:v2_ids:{address_hash}'
+        # v3 excludes Middlesex municipal data, including previously cached hits.
+        # Keep auth/rate-limit namespaces intact during this policy transition.
+        cache_key = f'geocode:v3:{address_hash}'
         cached = await cache.get(cache_key)
 
         if cached:

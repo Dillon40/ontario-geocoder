@@ -1,6 +1,6 @@
 -- Geocoder database schema
 -- Regenerated 2026-07-31 from the live database (pg_dump --schema-only, cleaned up)
--- Reflects migrations 1-32.
+-- Reflects migrations 1-37.
 -- IMPORTANT: schema.sql must be kept in lockstep with migrations.sql — update both together.
 -- All objects use IF NOT EXISTS for idempotency
 --
@@ -11,7 +11,7 @@
 --   migrations record their own row, when migrations.sql is run
 --   immediately afterward (setup_database.sh and docker-entrypoint-initdb.d
 --   both run schema.sql then migrations.sql, in that order). This lets
---   run_migrations.py correctly treat 1-32 as already applied on a
+--   run_migrations.py correctly treat 1-37 as already applied on a
 --   freshly bootstrapped database without re-running them.
 --
 -- KNOWN DRIFT (see regeneration notes): fsa_boundaries and
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS properties (
     street_suffix VARCHAR(20),
     street_direction VARCHAR(20),
     unit_no TEXT,
-    civic_no_suffix VARCHAR(50), -- widened from VARCHAR(10) on live DB; not tracked by a numbered migration
+    civic_no_suffix VARCHAR(50),
     city VARCHAR(100),
     city_original VARCHAR(100),
     province VARCHAR(50),
@@ -141,7 +141,7 @@ CREATE TABLE IF NOT EXISTS nar_addresses (
     apt_no_label TEXT,
     official_street_name VARCHAR(100),
     official_street_type VARCHAR(20),
-    official_street_dir VARCHAR(20), -- widened from VARCHAR(10) by migration 26
+    official_street_dir VARCHAR(20),
     csd_eng_name VARCHAR(100),
     prov_code INTEGER,
     mail_postal_code VARCHAR(10),

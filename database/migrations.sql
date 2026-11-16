@@ -1917,5 +1917,48 @@ WHERE source_key = 'ontario_municipal_boundaries';
 COMMIT;
 
 -- ============================================================================
+-- MIGRATION 36: Correct Middlesex snapshot licence claims
+-- ============================================================================
+
+BEGIN;
+
+-- The public item publishes custom terms, not an explicit OGL/commercial grant.
+-- Availability is not permission: consumers must review the source terms.
+UPDATE data_sources SET
+    license_type = 'Custom Middlesex County terms (commercial permission unverified)',
+    license_url = 'https://www.arcgis.com/home/item.html?id=928ed74edad64e4aa65170fb49c46476',
+    commercial_use_allowed = NULL,
+    required_attribution = 'Address data provided by the County of Middlesex (August 2022 snapshot). Review source terms before reuse.'
+WHERE source_key = 'middlesex_county_addresses';
+
+COMMIT;
+
+-- ============================================================================
+-- MIGRATION 37: Exclude Middlesex municipal data and retain NAR fallback
+-- ============================================================================
+
+BEGIN;
+
+-- Operator decision: no affirmative reuse grant was verified for either county
+-- feed. Retain provenance/audit records, but never use their municipal rows.
+UPDATE data_sources SET status = 'blocked',
+    notes = 'Excluded by operator: no verified permissive municipal licence. Use National Address Register fallback. Endpoints retained for research only.'
+WHERE source_key = 'middlesex_county_addresses';
+
+UPDATE properties SET is_deleted = TRUE, deleted_at = NOW()
+WHERE source_dataset IN ('middlesex_county', 'middlesex_county_addresses')
+  AND is_deleted IS NOT TRUE;
+UPDATE dataset_metadata SET active = FALSE, record_count = 0, last_updated = NOW()
+WHERE dataset_name IN ('middlesex_county', 'middlesex_county_addresses');
+DELETE FROM geocode_cache WHERE matched_property_id IN (
+    SELECT property_id FROM properties
+    WHERE source_dataset IN ('middlesex_county', 'middlesex_county_addresses')
+);
+-- Redis response caches are invalidated by the matching-policy v3 namespace;
+-- authentication/rate-limit keys are intentionally untouched.
+
+COMMIT;
+
+-- ============================================================================
 -- END OF MIGRATIONS
 -- ============================================================================

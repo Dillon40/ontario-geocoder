@@ -395,7 +395,7 @@ INSERT INTO data_sources (
 ) VALUES (
     'middlesex_county_addresses',
     'Middlesex County - Municipal Address Points',
-    'confirmed',
+    'blocked',
     ARRAY['Middlesex Centre', 'Strathroy-Caradoc', 'Thames Centre', 'Adelaide Metcalfe', 'Lucan Biddulph', 'North Middlesex', 'Southwest Middlesex', 'Newbury'],
     'county',
     ARRAY['N0L', 'N0M', 'N6G', 'N6H', 'N6J', 'N6K', 'N6L', 'N6M', 'N6N', 'N6P'],
@@ -468,7 +468,13 @@ END $$;
 UPDATE data_sources SET
     api_endpoint = 'https://services.arcgis.com/vhh9rYcMiBEBPGYb/arcgis/rest/services/MiddlesexCountyAddressPoints/FeatureServer/0',
     api_type = 'ArcGIS/FeatureServer', dataset_mapping_key = 'middlesex_county',
-    multi_endpoint_config = NULL
+    multi_endpoint_config = NULL,
+    license_type = 'Custom Middlesex County terms (commercial permission unverified)',
+    license_url = 'https://www.arcgis.com/home/item.html?id=928ed74edad64e4aa65170fb49c46476',
+    commercial_use_allowed = NULL,
+    required_attribution = 'Address data provided by the County of Middlesex (August 2022 snapshot). Review source terms before reuse.',
+    status = 'blocked',
+    notes = 'Excluded by operator: no verified permissive municipal licence. Use National Address Register fallback. Endpoints retained for research only.'
 WHERE source_key = 'middlesex_county_addresses';
 UPDATE data_sources SET
     api_endpoint = 'https://geo.statcan.gc.ca/geo_wa/rest/services/2021/Digital_boundary_files/MapServer/14',

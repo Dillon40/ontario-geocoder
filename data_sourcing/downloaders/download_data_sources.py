@@ -49,8 +49,8 @@ async def get_data_sources(conn, source_key: str = None, status: str = 'confirme
     """Fetch data sources from database."""
     if source_key:
         return await conn.fetch("""
-            SELECT * FROM data_sources WHERE source_key = $1
-        """, source_key)
+            SELECT * FROM data_sources WHERE source_key = $1 AND status = $2
+        """, source_key, status)
     else:
         return await conn.fetch("""
             SELECT * FROM data_sources WHERE status = $1
@@ -669,7 +669,7 @@ Examples:
         if args.source:
             sources = await get_data_sources(conn, source_key=args.source)
             if not sources:
-                print(f"Error: Source '{args.source}' not found in data_sources table")
+                print(f"Error: Source '{args.source}' not found or not confirmed (blocked sources cannot be downloaded)")
                 sys.exit(1)
         else:
             sources = await get_data_sources(conn, status='confirmed')

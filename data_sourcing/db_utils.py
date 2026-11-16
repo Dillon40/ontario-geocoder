@@ -57,6 +57,23 @@ def get_db_config() -> dict:
     }
 
 
+async def ensure_source_import_allowed(conn, source_name: str) -> None:
+    """Do not let direct imports/--force revive an explicitly blocked dataset.
+
+    Match both the registry key and importer mapping key. Unregistered sources
+    remain available to the dataset wizard; blocked/rejected registrations win.
+    """
+    rows = await conn.fetch('''
+        SELECT source_key, status FROM data_sources
+        WHERE source_key = $1 OR dataset_mapping_key = $1
+    ''', source_name)
+    for row in rows:
+        if row['status'] in ('blocked', 'rejected'):
+            raise RuntimeError(
+                f"Source {row['source_key']} is {row['status']}; import is prohibited. "
+                "--force and licence-consent flags do not override source exclusion.")
+
+
 async def get_db_connection() -> asyncpg.Connection:
     """
     Create a single database connection.
