@@ -23,7 +23,7 @@ Run `make help` to print this list from the Makefile itself.
 | Target | Description |
 |--------|-------------|
 | `make db-schema` | Apply `database/schema.sql` (idempotent) |
-| `make db-migrate` | Run all database migrations (`database/run_migrations.py`, falls back to `psql -f database/migrations.sql` if that script is missing) |
+| `make db-migrate` | Run all database migrations (`database/run_migrations.py`; never falls back to untracked SQL) |
 | `make db-seed` | Seed the `data_sources` table from `database/seed_data_sources.sql` |
 | `make db-init` | `db-schema` + `db-migrate` + `db-seed`, for a database that already exists |
 | `make db-status` | Show table row counts and applied-migration status |
@@ -38,8 +38,14 @@ Run `make help` to print this list from the Makefile itself.
 | `make import-only` | Import from already-downloaded files, no download step |
 | `make import-commercial` | Import only commercially-licensed sources |
 | `make import-source SRC=<source_key>` | Import a single source, e.g. `make import-source SRC=guelph_addresses` |
-| `make import-nar` | Import NAR Ontario from `data_sourcing/data_sources/nar_ontario/` (files must already be there — NAR requires a manual download from Statistics Canada) |
+| `make import-nar` | Import NAR Ontario from `data_sourcing/data_sources/nar_ontario/` (files must already be there; use `make import-all` or `--source nar_ontario` to download automatically) |
 | `make list-sources` | List all confirmed data sources and their status |
+
+Middlesex municipal data is blocked by the approved source policy; default setup selects seven
+confirmed sources and relies on NAR for Middlesex. Explicit source selection, `--force`, and
+`--accept-non-commercial` do not override that exclusion. Direct municipal importer calls also
+check blocked/rejected registry status before processing a file. See [DEPLOYMENT.md](DEPLOYMENT.md)
+for the coverage tradeoff and upgrade behavior.
 
 ### Run
 
@@ -55,7 +61,7 @@ Run `make help` to print this list from the Makefile itself.
 | `make docker-up` | Start postgres + redis + api via `docker-compose.prod.yml` |
 | `make docker-down` | Stop the Docker Compose stack |
 | `make docker-logs` | Tail Docker Compose logs |
-| `make docker-etl` | Run `data_sourcing.setup_data --all-confirmed --accept-non-commercial` inside the `etl` container |
+| `make docker-etl` | Run the ETL module inside Docker; override `ETL_ARGS='--source guelph_addresses'` or `ETL_ARGS='--help'` |
 
 ### Test & verify
 
@@ -84,14 +90,14 @@ per-source *field mappings* used at import time. They're linked by `source_key`
 
 ```bash
 # List / inspect sources
-uv run data_sourcing/management/manage_data_sources.py list-sources
-uv run data_sourcing/management/manage_data_sources.py list-sources --status confirmed
-uv run data_sourcing/management/manage_data_sources.py list-sources --region Toronto
-uv run data_sourcing/management/manage_data_sources.py list-sources --data-type addresses
-uv run data_sourcing/management/manage_data_sources.py show-source toronto
+uv run python data_sourcing/management/manage_data_sources.py list-sources
+uv run python data_sourcing/management/manage_data_sources.py list-sources --status confirmed
+uv run python data_sourcing/management/manage_data_sources.py list-sources --region Toronto
+uv run python data_sourcing/management/manage_data_sources.py list-sources --data-type addresses
+uv run python data_sourcing/management/manage_data_sources.py show-source toronto
 
 # Add / update / delete a source
-uv run data_sourcing/management/manage_data_sources.py add-source \
+uv run python data_sourcing/management/manage_data_sources.py add-source \
   --key hamilton \
   --name "City of Hamilton Open Data" \
   --regions "Hamilton,Dundas,Ancaster,Flamborough,Stoney Creek" \
@@ -103,24 +109,24 @@ uv run data_sourcing/management/manage_data_sources.py add-source \
   --commercial-use true \
   --data-types "addresses,parcels,zoning"
 
-uv run data_sourcing/management/manage_data_sources.py update-source toronto \
+uv run python data_sourcing/management/manage_data_sources.py update-source toronto \
   --status confirmed --record-count 525409 --commercial-use true
 
-uv run data_sourcing/management/manage_data_sources.py delete-source old_source
+uv run python data_sourcing/management/manage_data_sources.py delete-source old_source
 
 # Data types (the addresses/parcels/zoning/... reference table)
-uv run data_sourcing/management/manage_data_sources.py list-types
-uv run data_sourcing/management/manage_data_sources.py add-type \
+uv run python data_sourcing/management/manage_data_sources.py list-types
+uv run python data_sourcing/management/manage_data_sources.py add-type \
   --key heritage_sites --display-name "Heritage Sites" \
   --description "Designated heritage properties and conservation districts"
-uv run data_sourcing/management/manage_data_sources.py link-types toronto "addresses,parcels,building_footprints"
-uv run data_sourcing/management/manage_data_sources.py unlink-types toronto "roads"
+uv run python data_sourcing/management/manage_data_sources.py link-types toronto "addresses,parcels,building_footprints"
+uv run python data_sourcing/management/manage_data_sources.py unlink-types toronto "roads"
 
 # Cross-source queries
-uv run data_sourcing/management/manage_data_sources.py sources-by-type addresses
-uv run data_sourcing/management/manage_data_sources.py types-for-region Toronto
-uv run data_sourcing/management/manage_data_sources.py common-types "toronto,ottawa,guelph"
-uv run data_sourcing/management/manage_data_sources.py export-json > data_sources_export.json
+uv run python data_sourcing/management/manage_data_sources.py sources-by-type addresses
+uv run python data_sourcing/management/manage_data_sources.py types-for-region Toronto
+uv run python data_sourcing/management/manage_data_sources.py common-types "toronto,ottawa,guelph"
+uv run python data_sourcing/management/manage_data_sources.py export-json > data_sources_export.json
 ```
 
 Adding or updating a source auto-regenerates the markdown docs in `data_sourcing/docs/`
@@ -128,15 +134,13 @@ Adding or updating a source auto-regenerates the markdown docs in `data_sourcing
 is passed. To regenerate manually:
 
 ```bash
-uv run data_sourcing/management/generate_data_source_docs.py
+uv run python data_sourcing/management/generate_data_source_docs.py
 ```
 
-On a new machine, populate the `data_sources` table from those committed markdown files (the
-"portable source of truth" for data-source metadata) with:
-
-```bash
-uv run data_sourcing/management/migrate_markdown_to_db.py
-```
+Fresh installs use `database/seed_data_sources.sql` via the tracked initializer; Compose does
+this automatically. The markdown files are descriptive snapshots, not an initialization source.
+`migrate_markdown_to_db.py` is a legacy recovery tool: do not run it over a fresh seeded database,
+because old markdown metadata can overwrite corrected endpoints. See [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Orchestrated download + import (`setup_data.py`)
 
@@ -144,14 +148,14 @@ uv run data_sourcing/management/migrate_markdown_to_db.py
 across all confirmed sources, or one source at a time:
 
 ```bash
-uv run data_sourcing/setup_data.py --all-confirmed                        # download + import (asks about non-commercial licences)
-uv run data_sourcing/setup_data.py --all-confirmed --accept-non-commercial
-uv run data_sourcing/setup_data.py --all-confirmed --download-only
-uv run data_sourcing/setup_data.py --all-confirmed --import-only --accept-non-commercial
-uv run data_sourcing/setup_data.py --all-confirmed --commercial-only
-uv run data_sourcing/setup_data.py --all-confirmed --skip-manual          # skip sources needing a manual download (e.g. NAR)
-uv run data_sourcing/setup_data.py --source guelph_addresses
-uv run data_sourcing/setup_data.py --list
+uv run python data_sourcing/setup_data.py --all-confirmed                        # download + import (asks about non-commercial licences)
+uv run python data_sourcing/setup_data.py --all-confirmed --accept-non-commercial
+uv run python data_sourcing/setup_data.py --all-confirmed --download-only
+uv run python data_sourcing/setup_data.py --all-confirmed --import-only --accept-non-commercial
+uv run python data_sourcing/setup_data.py --all-confirmed --commercial-only
+uv run python data_sourcing/setup_data.py --all-confirmed --skip-manual          # skip sources explicitly marked manual (not NAR)
+uv run python data_sourcing/setup_data.py --source guelph_addresses
+uv run python data_sourcing/setup_data.py --list
 ```
 
 ## Importing a single dataset directly
@@ -163,21 +167,21 @@ fields and prints a mapping you can copy into `config/dataset-mappings.json`.
 
 ```bash
 # Analyze a new dataset (dry run, no database changes)
-uv run data_sourcing/importers/import_production_data.py \
+uv run python data_sourcing/importers/import_production_data.py \
   --file path/to/new_city_dataset.geojson \
   --source new_city \
   --dry-run
 
 # Import it, once config/dataset-mappings.json has an entry for "new_city"
-uv run data_sourcing/importers/import_production_data.py \
+uv run python data_sourcing/importers/import_production_data.py \
   --file path/to/new_city_dataset.geojson \
   --source new_city \
   --batch-size 1000
 
 # Other options
-uv run data_sourcing/importers/import_production_data.py --file <f> --source <s> --force              # re-import even if the file hash is unchanged
-uv run data_sourcing/importers/import_production_data.py --file <f> --source <s> --stale-strategy report_only  # log stale records instead of soft-deleting them
-uv run data_sourcing/importers/import_production_data.py --file <f> --source <s> --stale-strategy skip         # skip stale-record detection entirely
+uv run python data_sourcing/importers/import_production_data.py --file <f> --source <s> --force              # re-import even if the file hash is unchanged
+uv run python data_sourcing/importers/import_production_data.py --file <f> --source <s> --stale-strategy report_only  # log stale records instead of soft-deleting them
+uv run python data_sourcing/importers/import_production_data.py --file <f> --source <s> --stale-strategy skip         # skip stale-record detection entirely
 ```
 
 Required fields for a new dataset: coordinates (`latitude`/`longitude` properties, or coordinate
@@ -191,14 +195,14 @@ NAR downloads automatically as part of `make import-all`; `data_sourcing/importe
 is the underlying importer if you need to run it directly against files already on disk:
 
 ```bash
-uv run data_sourcing/importers/import_nar_data.py \
+uv run python data_sourcing/importers/import_nar_data.py \
   --addresses path/to/Address_10.csv \
   --locations path/to/Location_10.csv \
   --province 35 \
   --batch-size 5000
 
 # Force reimport even if the file hash is unchanged
-uv run data_sourcing/importers/import_nar_data.py --addresses <f> --force
+uv run python data_sourcing/importers/import_nar_data.py --addresses <f> --force
 ```
 
 NAR is split across multiple CSV part files, address parts with or without matching location
@@ -241,8 +245,8 @@ Boundary reference data uses an atomic staging-table swap instead of UPSERT (see
 IMPORTER_SYSTEM.md), so a failed import never leaves production mid-swap:
 
 ```bash
-uv run data_sourcing/importers/import_fsa_boundaries.py --shapefile /path/to/lfsa000a21a_e.shp
-uv run data_sourcing/importers/import_municipal_boundaries.py --shapefile /path/to/Municipal_Boundary_-_Lower_and_Single_Tier.shp
+uv run python data_sourcing/importers/import_fsa_boundaries.py --shapefile /path/to/lfsa000a21a_e.shp
+uv run python data_sourcing/importers/import_municipal_boundaries.py --shapefile /path/to/Municipal_Boundary_-_Lower_and_Single_Tier.shp
 ```
 
 ## Example SQL queries against data-source metadata
@@ -277,10 +281,10 @@ WHERE EXISTS (
 ## Migrations
 
 ```bash
-uv run database/run_migrations.py             # apply pending migrations
-uv run database/run_migrations.py --status    # show applied migrations
-uv run database/run_migrations.py --dry-run   # preview without applying
-uv run database/run_migrations.py --force N   # force re-apply migration N (use with caution)
+uv run python database/run_migrations.py             # apply pending migrations
+uv run python database/run_migrations.py --status    # show applied migrations
+uv run python database/run_migrations.py --dry-run   # preview without applying
+uv run python database/run_migrations.py --force N   # force re-apply migration N (use with caution)
 ```
 
 ## Offline accuracy validation
@@ -293,10 +297,10 @@ checks whether the returned address matches the original. `GOOGLE_GEOCODING_API_
 [README](../README.md)) — set them inline rather than adding them to `.env`.
 
 ```bash
-uv run engine/scripts/validate_google_reverse.py                       # default: 100 addresses
-uv run engine/scripts/validate_google_reverse.py --sample 500
-uv run engine/scripts/validate_google_reverse.py --input path/to/geocoded_results.json
-uv run engine/scripts/validate_google_reverse.py --output reports/my_validation.json
+uv run python engine/scripts/validate_google_reverse.py                       # default: 100 addresses
+uv run python engine/scripts/validate_google_reverse.py --sample 500
+uv run python engine/scripts/validate_google_reverse.py --input path/to/geocoded_results.json
+uv run python engine/scripts/validate_google_reverse.py --output reports/my_validation.json
 ```
 
 Writes a console summary plus a JSON report to `reports/google_validation_report.json` by default.

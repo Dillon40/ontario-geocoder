@@ -20,6 +20,16 @@ This setup **does not use Docker**. All services (PostgreSQL, Redis, Python) run
 
 ## Quick Start
 
+Use a dedicated VM. Before native setup, export a strong password and retain it securely:
+
+```bash
+export DB_PASSWORD="$(openssl rand -hex 32)"
+```
+
+There is no default DB password. Native setup requires shell-safe values (generated hex is
+recommended), applies tracked migrations, and creates a mode-0600 development `.env` with a
+random initial admin key. For production Docker, follow [DEPLOYMENT.md](DEPLOYMENT.md) instead.
+
 ### Option 1: Unified Setup (Recommended)
 
 The `initialize_geocoder.sh` script is the single entry point for setting up the complete system:
@@ -60,7 +70,7 @@ For more control, run individual scripts in `dependency_setup/`:
 ./dependency_setup/configure_env.sh
 
 # 5. Run migrations with tracking
-uv run database/run_migrations.py
+uv run python database/run_migrations.py
 ```
 
 After running these scripts, you'll have a fully configured development environment.
@@ -122,13 +132,13 @@ This script:
 
 ```bash
 # Run migrations with version tracking
-uv run database/run_migrations.py
+uv run python database/run_migrations.py
 
 # Check migration status
-uv run database/run_migrations.py --status
+uv run python database/run_migrations.py --status
 
 # Preview migrations without applying
-uv run database/run_migrations.py --dry-run
+uv run python database/run_migrations.py --dry-run
 ```
 
 The migration runner:
@@ -156,9 +166,9 @@ PGPASSWORD="$DB_PASSWORD" psql -h localhost -U geocoder -d geocoder
 ```
 
 This script:
-- Creates `.env` file with database and Redis configuration
-- Tests database and Redis connections
-- Backs up existing .env if present
+- Creates a mode-0600 development `.env` from `.env.example` with supplied database credentials
+- Generates an API pepper and initial admin key without printing them
+- Keeps an existing `.env` unchanged; initialization verifies DB connectivity and `/v1/health` verifies Redis
 
 **Generated .env File:**
 ```bash
@@ -235,13 +245,13 @@ Once setup is complete, import your geocoding data:
 
 ```bash
 # Using wizard mode for new datasets
-DB_HOST=localhost uv run data_sourcing/importers/import_production_data.py \
+DB_HOST=localhost uv run python data_sourcing/importers/import_production_data.py \
   --file data_sources/city_data.geojson \
   --source city_name \
   --dry-run
 
 # Import configured datasets (e.g., Guelph)
-DB_HOST=localhost uv run data_sourcing/importers/import_production_data.py \
+DB_HOST=localhost uv run python data_sourcing/importers/import_production_data.py \
   --file data_sources/guelph_address_dataset.geojson \
   --source guelph \
   --batch-size 1000
@@ -250,7 +260,7 @@ DB_HOST=localhost uv run data_sourcing/importers/import_production_data.py \
 ### Import NAR Data
 
 ```bash
-DB_HOST=localhost uv run data_sourcing/importers/import_nar_data.py \
+DB_HOST=localhost uv run python data_sourcing/importers/import_nar_data.py \
   --addresses path/to/Address_10.csv \
   --locations path/to/Location_10.csv \
   --province 35 \
@@ -261,12 +271,12 @@ DB_HOST=localhost uv run data_sourcing/importers/import_nar_data.py \
 
 ```bash
 # Add FSA codes to a dataset's GeoJSON file before importing (PostGIS spatial lookup)
-DB_HOST=localhost uv run data_sourcing/enrichment/add_fsa_to_dataset.py \
+DB_HOST=localhost uv run python data_sourcing/enrichment/add_fsa_to_dataset.py \
   --input data_sources/toronto_address_dataset.geojson \
   --output data_sources/toronto_with_fsa.geojson
 
 # Backfill fsa_code on nar_addresses rows still missing one
-DB_HOST=localhost uv run data_sourcing/enrichment/add_fsa_to_nar.py --db geocoder
+DB_HOST=localhost uv run python data_sourcing/enrichment/add_fsa_to_nar.py --db geocoder
 ```
 
 ### Import Audit Trail
@@ -417,21 +427,16 @@ source ~/.bashrc
 
 ### Initial Data Source Migration
 
-After cloning the repository, you need to populate the database with data source metadata:
+The setup scripts seed `database/seed_data_sources.sql` after tracked migrations. For an
+existing database that needs initialization:
 
 ```bash
-# 1. Migrate source metadata from git-stored markdown to database
-DB_HOST=localhost uv run data_sourcing/management/migrate_markdown_to_db.py
-
-# This populates the data_sources table from:
-# - data_sourcing/docs/confirmed_sources.md
-# - data_sourcing/docs/potential_sources.md
+uv run python database/run_migrations.py --initialize --replay-unverified
 ```
 
-**What this does:**
-- Reads data source metadata from committed markdown files (version-controlled)
-- Populates `data_sources` table with URLs, licenses, regions, etc.
-- Enables the download/import automation system
+Back up before replaying legacy NULL-checksum migrations. Markdown source lists are descriptive
+snapshots, not authoritative initialization inputs. Do not run the legacy markdown migration
+over a freshly seeded database: it may replace corrected endpoint metadata.
 
 ### Managing Data Sources
 
@@ -439,13 +444,13 @@ Once migrated, use the CLI to manage data sources:
 
 ```bash
 # List all sources
-DB_HOST=localhost uv run data_sourcing/management/manage_data_sources.py list-sources
+DB_HOST=localhost uv run python data_sourcing/management/manage_data_sources.py list-sources
 
 # Show detailed info for a source
-DB_HOST=localhost uv run data_sourcing/management/manage_data_sources.py show-source toronto
+DB_HOST=localhost uv run python data_sourcing/management/manage_data_sources.py show-source toronto
 
 # Add a new source (auto-regenerates docs)
-DB_HOST=localhost uv run data_sourcing/management/manage_data_sources.py add-source \
+DB_HOST=localhost uv run python data_sourcing/management/manage_data_sources.py add-source \
   --key new_city \
   --name "New City Open Data" \
   --regions "NewCity" \
@@ -454,7 +459,7 @@ DB_HOST=localhost uv run data_sourcing/management/manage_data_sources.py add-sou
   --data-types "addresses,parcels"
 
 # Update an existing source
-DB_HOST=localhost uv run data_sourcing/management/manage_data_sources.py update-source toronto \
+DB_HOST=localhost uv run python data_sourcing/management/manage_data_sources.py update-source toronto \
   --status confirmed \
   --record-count 525409
 ```
@@ -470,26 +475,27 @@ After migrating data sources to the database, use the automated data setup scrip
 
 ```bash
 # Download and import all confirmed data sources
-DB_HOST=localhost uv run data_sourcing/setup_data.py --all-confirmed
+DB_HOST=localhost uv run python data_sourcing/setup_data.py --all-confirmed
 
 # Or download only (no import)
-DB_HOST=localhost uv run data_sourcing/setup_data.py --all-confirmed --download-only
+DB_HOST=localhost uv run python data_sourcing/setup_data.py --all-confirmed --download-only
 
 # Or import only (if data already downloaded)
-DB_HOST=localhost uv run data_sourcing/setup_data.py --all-confirmed --import-only
+DB_HOST=localhost uv run python data_sourcing/setup_data.py --all-confirmed --import-only
 
-# Skip NAR (requires manual download from Statistics Canada)
-DB_HOST=localhost uv run data_sourcing/setup_data.py --all-confirmed --skip-manual
+# Skip only sources explicitly marked as manual (NAR downloads automatically)
+DB_HOST=localhost uv run python data_sourcing/setup_data.py --all-confirmed --skip-manual
 
 # Process specific source
-DB_HOST=localhost uv run data_sourcing/setup_data.py --source guelph_addresses
+DB_HOST=localhost uv run python data_sourcing/setup_data.py --source guelph_addresses
 
 # List available sources
-DB_HOST=localhost uv run data_sourcing/setup_data.py --list
+DB_HOST=localhost uv run python data_sourcing/setup_data.py --list
 ```
 
-**Note:** NAR (National Address Register) requires manual download from Statistics Canada.
-The script will prompt you with instructions when processing NAR.
+**Note:** NAR downloads automatically from Statistics Canada. Setup imports every Ontario CSV part
+and backfills coordinates/FSA codes. Retain the downloaded files for retry; a nonzero exit means
+at least one download/import failed. Review `import_history` before treating coverage as complete.
 
 ## Next Steps
 

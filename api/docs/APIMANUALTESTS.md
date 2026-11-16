@@ -1,162 +1,77 @@
-### Quick Test Commands
+# Manual deployment checks
 
-Check if the API is running:
-curl http://localhost:3000/
+Follow [deployment setup and key creation](../../docs/DEPLOYMENT.md) first.
+Set your actual port and a valid key (do not commit or paste the key in reports):
 
-Health check:
-curl http://localhost:3000/health
+```bash
+export BASE_URL=http://localhost:13000
+read -rs API_KEY; export API_KEY
+curl "$BASE_URL/v1/health"             # public: 200 when DB + Redis work
+curl "$BASE_URL/v1/stats"              # no key: 401
+curl -H "X-API-Key: $API_KEY" "$BASE_URL/v1/stats"
+curl -H "X-API-Key: $API_KEY" "$BASE_URL/v1/attributions"
+```
 
-Statistics:
-curl http://localhost:3000/stats
+## Geocoding formats and validation
 
-### Clear REDIS Commands
-Clear cache and test property:
+```bash
+# Free-text input
+curl "$BASE_URL/v1/geocode" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' \
+  -d '{"address":"100 Queen Street West, Toronto, ON"}'
+# Structured snake_case (camelCase aliases streetNumber/streetName/etc. also work)
+curl "$BASE_URL/v1/geocode" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' \
+  -d '{"street_number":"100","street_name":"Queen","street_suffix":"Street","street_direction":"West","city":"Toronto","province":"ON"}'
+# Nested IDX format
+curl "$BASE_URL/v1/geocode" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' \
+  -d '{"Address":{"StreetNumber":"51","StreetName":"Cork","StreetSuffix":"Street","StreetDirection":"West","City":"Guelph","Province":"ON","PostalCode":"N1H 2X3"}}'
+# Hamilton: matched_address must be "681 Hall Road, Hamilton, ON L0R 1C0", not null
+curl "$BASE_URL/v1/geocode" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' \
+  -d '{"street_number":"681","street_name":"Hall","street_suffix":"Road","city":"Hamilton","postal_code":"L0R 1C0"}'
+# Middlesex: NAR (tier 3), confidence <= 0.90, never municipal_middlesex_county
+curl "$BASE_URL/v1/geocode" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' \
+  -d '{"street_number":"21605","street_name":"Adelaide","street_direction":"North","city":"Middlesex Centre","postal_code":"N0M1C0"}'
+# PIN-only (a parcel may have several addresses; inspect the matched address)
+curl "$BASE_URL/v1/geocode" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' \
+  -d '{"pin":"712880109"}'
+# Batch: 200 with independent per-item success, maximum 1000 items
+curl "$BASE_URL/v1/geocode/batch" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' \
+  -d '{"addresses":[{"address":"100 Queen Street West, Toronto, ON"},{"street_number":"99999999","street_name":"ZZZNONEXISTENT","city":"Toronto"}]}'
+# Empty body 400; malformed JSON 400; unknown fields 422
+curl -i "$BASE_URL/v1/geocode" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{}'
+curl -i "$BASE_URL/v1/geocode" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{'
+curl -i "$BASE_URL/v1/geocode" -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' -d '{"streat_name":"Queen"}'
+```
 
-docker exec -it geocoder-redis redis-cli FLUSHDB && curl -i -X POST http://localhost:3000/geocode
--H "Content-Type: application/json" -d '{"pin":"212310074"}'
+Check coordinates, direction, populated matched label, source and licence attribution. NAR
+`confidence` must not exceed 0.90. Its `confidence_factors` must preserve the pre-geography base,
+show the geographic adjustment and cap, and agree with the final score. Check the same fields
+in batch responses. See the [confidence policy](../../docs/NAR_QUERY_CONFIDENCE_RATINGS.md).
+Repeat a valid request to check
+`cached=true`. A 404 means no match; it is not a server error. Missing reference data must not be
+misreported as proof that a real city/FSA combination is geographically invalid.
 
-Or if the container has a different name:
+## Browser preflight
 
-First, find the Redis container name:
-docker ps | grep redis
+Use the exact origin configured in `ALLOWED_ORIGINS`. Preflight has no API key:
 
-Then use it:
-docker exec -it <redis-container-name> redis-cli FLUSHDB && curl -i -X POST
-http://localhost:3000/geocode -H "Content-Type: application/json" -d '{"pin":"212310074"}'
+```bash
+curl -i -X OPTIONS "$BASE_URL/v1/geocode" \
+  -H "Origin: $BASE_URL" -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: x-api-key,content-type'
+```
 
-Other useful Docker Redis commands:
+Expect 200 and the allowed origin. Disallowed origins must not receive an allow-origin header.
+Actual requests still require a valid key. `/docs` is a public UI with **Authorize** for operations.
+Check that even 401/403/500 responses include `X-Request-ID` and security headers.
 
-# Check Redis is running
-docker exec -it geocoder-redis redis-cli ping
+## Redis checks (production authentication required)
 
-# See all cache keys
-docker exec -it geocoder-redis redis-cli --scan --pattern "geocode:*"
+```bash
+docker compose -f docker-compose.prod.yml exec redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli ping'
+docker compose -f docker-compose.prod.yml exec redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli INFO stats'
+```
 
-# Clear only geocode cache entries
-docker exec -it geocoder-redis redis-cli --scan --pattern "geocode:*" | xargs docker exec -i
-geocoder-redis redis-cli DEL
-
-# Get cache stats
-docker exec -it geocoder-redis redis-cli INFO stats
-
-The container name is `geocoder-redis` in both `docker-compose.yml` and `docker-compose.prod.yml`
-(pinned via `container_name`, so it won't get a numeric suffix). Use `docker ps` to confirm if
-running under a different Compose project or override.
-
-### Simple String Address (Easiest)
-
-curl -X POST http://localhost:3000/geocode \
--H "Content-Type: application/json" \
--d '{
-    "address": "123 Main Street, Toronto, ON M5H 2N2"
-}'
-
-### Structured Address (All Available Fields - snake_case)
-
-curl -X POST http://localhost:3000/geocode \
--H "Content-Type: application/json" \
--d '{
-    "street_number": "123",
-    "street_name": "Main",
-    "street_suffix": "Street",
-    "street_direction": "E",
-    "unit_no": "Suite 100",
-    "city": "Toronto",
-    "province": "Ontario",
-    "postal_code": "M5H 2N2",
-    "pin": "12345678"
-}'
-
-### Structured Address (camelCase format)
-
-curl -X POST http://localhost:3000/geocode \
--H "Content-Type: application/json" \
--d '{
-    "streetNumber": "123",
-    "streetName": "Main",
-    "streetSuffix": "Street",
-    "streetDirection": "E",
-    "unitNumber": "Suite 100",
-    "city": "Toronto",
-    "province": "Ontario",
-    "postalCode": "M5H 2N2",
-    "PIN": "12345678"
-}'
-
-### IDX Format (Nested Address Object)
-
-curl -X POST http://localhost:3000/geocode \
--H "Content-Type: application/json" \
--d '{
-    "Address": {
-    "StreetNumber": "123",
-    "StreetName": "Main",
-    "StreetSuffix": "Street",
-    "StreetDirection": "E",
-    "UnitNumber": "Suite 100",
-    "City": "Toronto",
-    "Province": "Ontario",
-    "PostalCode": "M5H 2N2",
-    "Country": "Canada"
-    }
-}'
-
-### PIN-Only Lookup (Tier 1 Direct)
-
-curl -X POST http://localhost:3000/geocode \
--H "Content-Type: application/json" \
--d '{
-    "pin": "12345678"
-}'
-
-### Batch Request
-
-curl -X POST http://localhost:3000/geocode/batch \
--H "Content-Type: application/json" \
--d '{
-    "addresses": [
-    {
-        "streetNumber": "123",
-        "streetName": "Main",
-        "streetSuffix": "Street",
-        "city": "Toronto",
-        "province": "Ontario",
-        "postalCode": "M5H 2N2"
-    },
-    {
-        "streetNumber": "456",
-        "streetName": "Queen",
-        "streetSuffix": "Street",
-        "city": "Toronto",
-        "province": "Ontario",
-        "postalCode": "M4C 1S6"
-    }
-    ]
-}'
-
-**Or using simple string addresses:**
-
-curl -X POST http://localhost:3000/geocode/batch \
--H "Content-Type: application/json" \
--d '{
-    "addresses": [
-    {
-        "address": "123 Main Street, Toronto, ON M5H 2N2"
-    },
-    {
-        "address": "456 Queen Street, Toronto, ON M4C 1S6"
-    }
-    ]
-}'
-
-**For batch geocoding via JSON file:**
-
-curl -X POST http://localhost:3000/geocode/batch \
-    -H "Content-Type: application/json" \
-    -d @sample_input_data/toronto_sample_properties_nopin.json
-
-Note: The batch endpoint expects the format {"addresses": [...]}, so the first
-commands wrap your JSON array appropriately. 
-
-**The batch endpoint supports up to 1000 addresses per request.**
-
+Do not flush a shared/production Redis while testing. This project's container has a dedicated
+volume. Rebuild/recreate the API after code changes; response cache versioning invalidates old
+geocoding results when result semantics change. API-key/rate-limit state must not be cleared
+merely to make a failing test pass.

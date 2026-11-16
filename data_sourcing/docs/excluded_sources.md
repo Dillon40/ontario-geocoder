@@ -1,6 +1,8 @@
 # Excluded Ontario GIS Data Sources
 
-*Auto-generated on 2026-07-23 07:24*
+*Inventory auto-generated on 2026-07-23 07:24; Middlesex access and licensing notes manually revised after operator review.*
+
+The generated inventory is historical, not a live source-status report. The Middlesex entry below reflects the current branch policy. Preserve its manually maintained evidence and review notes when regenerating this file.
 
 **Total Sources:** 37
 
@@ -75,7 +77,7 @@
 | Lambton County | [Portal](https://www.lambtongis.ca/) | REST/FeatureServer | - | No | - |
 | Lanark County | - | - | - | No | - |
 | Lennox and Addington County | - | - | - | No | - |
-| Middlesex County - Address Points | [Portal](https://data-middlesex.opendata.arcgis.com) | arcgis_featureserver | `https://utility.arcgis.com/usrsvcs/se...` | No | - |
+| Middlesex County - Address Points | [Portal](https://data-middlesex.opendata.arcgis.com/) | ArcGIS/FeatureServer (2022 snapshot; blocked) | [Recorded endpoint](https://services.arcgis.com/vhh9rYcMiBEBPGYb/arcgis/rest/services/MiddlesexCountyAddressPoints/FeatureServer/0) | No | - |
 | North Bay | [Portal](https://data-northbaygis.hub.arcgis.com/) | REST/FeatureServer | - | No | - |
 | Northumberland County | - | - | - | No | - |
 | Oxford County | [Portal](https://public-oxfordcounty.opendata.arcgis.com/) | REST/FeatureServer | - | No | - |
@@ -117,7 +119,7 @@
 | Lambton County | - | No | - | Commercial use not permitted |
 | Lanark County | - | - | - | - |
 | Lennox and Addington County | - | No | - | Commercial use not permitted |
-| Middlesex County - Address Points | Custom - County of Middlesex | - | - | Data provided as-is without warranty.... |
+| Middlesex County - Address Points | Custom disclaimer; reuse grant unverified | Unverified | [Portal disclaimer](https://data-middlesex.opendata.arcgis.com/#cvwt8076h) | Warranty/liability terms located; source remains blocked pending reuse clarification. See review below. |
 | North Bay | - | No | - | Commercial use not permitted |
 | Northumberland County | - | - | - | - |
 | Oxford County | - | No | - | Commercial use not permitted |
@@ -212,11 +214,23 @@
 
 ### Middlesex County - Address Points
 
-**Scraping Notes:** Website under construction but endpoints confirmed. Combines data from 8 municipalities: Newbury, Strathroy-Caradoc, Middlesex Centre, Adelaide Metcalfe, Thames Centre, Lucan Biddulph, North Middlesex, Southwest Middlesex.
+**Current status:** `blocked` (`middlesex_county_addresses`). The current exclusion is an operator decision over unverified reuse permission, not a finding that the data is unavailable or that commercial use is expressly prohibited. NAR remains the enabled fallback. Consent and force-import flags do not override this exclusion.
 
-**API Notes:** 14 separate endpoints (8 main address + 6 condo unit datasets). Uses Hub download API with FeatureServer fallback. Item IDs and service paths documented in downloader script.
+**Coverage:** Eight municipalities: Newbury, Strathroy-Caradoc, Middlesex Centre, Adelaide Metcalfe, Thames Centre, Lucan Biddulph, North Middlesex, Southwest Middlesex.
 
-**General Notes:** Combined from 14 separate municipality address point datasets via ArcGIS Hub proxy Site under construction - moved to blocked until data available.
+**Access history:** Earlier research recorded a site under construction and aggregation of 14 municipal endpoints (8 main address datasets and 6 condo-unit datasets), using the Hub download API with FeatureServer fallback. Those notes explain the historical availability-based block; they do not describe the current configured input. Migration 35 and the seed file instead record the county-published August 2022 consolidated snapshot, [ArcGIS item `928ed74edad64e4aa65170fb49c46476`](https://www.arcgis.com/home/item.html?id=928ed74edad64e4aa65170fb49c46476). Its endpoint and mapping are retained for research, not enabled ingestion. Do not assume that the snapshot and newer municipal feeds share the same terms.
+
+**New licensing evidence:** The operator located the following disclaimer at [the county open-data portal](https://data-middlesex.opendata.arcgis.com/#cvwt8076h):
+
+> The Data is provided "as is", without warranty, representation or condition of any kind. The County of Middlesex disclaims all warranties and conditions, express or implied, in respect of the Data and the Modifications, including all implied warranties or conditions of merchantable quality and fitness for a particular purpose. In particular, the County of Middlesex does not warrant that the information comprising the Data and the Modifications is up-to-date or accurate.
+>
+> The Data is provided for information purposes only. The user acknowledges that the Data may not be up-to-date or accurate and the County of Middlesex shall not be responsible for any damage to property, injury to person or any other loss suffered by you for relying on the Data. In no event shall the County of Middlesex be responsible for any special, indirect, incidental or consequential damages which you may incur, even if advised of the possibility thereof.
+
+**Evidence provenance:** This excerpt was supplied by the operator from their browser review. Automated requests to the portal and snapshot item metadata during this follow-up returned HTTP 403, so the current page, surrounding terms, and dataset applicability were not independently verified here.
+
+**Assessment:** The portal's open-data presentation and references to "Modifications" are relevant context for intended reuse. However, the quoted passage disclaims warranties and liability; it does not itself expressly grant copying, modification, redistribution, or commercial use. Neither the earlier access notes nor the absence of an explicit prohibition resolves those permissions. This is a conservative project-policy assessment, not a legal conclusion that reuse is forbidden. Do not label the source as Open Government Licence or set commercial permission to `true` on this evidence alone.
+
+**To resolve:** Review and archive the complete applicable terms (including any definitions or grant preceding this disclaimer), or obtain written clarification from the County covering the specific address dataset, commercial geocoding, redistribution/derived outputs, and attribution requirements. Record whether permission covers the 2022 snapshot, newer municipal feeds, or both. If the operator then approves inclusion, update the source metadata and policy with a new tracked migration and matching tests; do not edit already-applied migration checksums. Until then, migrations 36–37 and the fresh seed continue to mark permission unverified and the source blocked.
 
 ### North Bay
 

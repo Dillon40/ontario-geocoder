@@ -27,9 +27,10 @@ It is not part of the live geocoding path.)
 
 Every request is tried against three tiers in order, stopping at the first confident match:
 
-1. **Tier 1 — PIN lookup** (confidence 1.0). If the request includes a Property Identification
-   Number, this is a direct primary-key lookup against `properties`. Highest possible confidence
-   because a PIN uniquely identifies a parcel.
+1. **Tier 1 — PIN lookup** (confidence 1.0 for parcel identity). If the request includes a Property
+   Identification Number, this is an indexed parcel lookup against active `properties` rows.
+   A parcel may have several distinct addresses/units; PIN-only requests select a deterministic
+   address point for that parcel. PIN is **not** the address-level primary key.
 
 2. **Tier 2 — Municipal datasets** (confidence roughly 0.65–0.99). Searches all imported municipal
    datasets together (not routed by postal code first). It runs a cascading sequence of match
@@ -39,15 +40,18 @@ Every request is tried against three tiers in order, stopping at the first confi
    The first layer that returns a single, unambiguous match wins; when a layer returns several
    candidates, a scoring pass picks the best one before falling through to the next, looser layer.
 
-3. **Tier 3 — National Address Register fallback** (confidence roughly 0.36–0.90). If nothing in
-   Tier 2 matches, the same kind of cascade runs against the NAR table: postal code + civic number
-   + components, then full-address string match, then component fuzzy match, then FSA + fuzzy
-   street name. NAR has close to full Ontario coverage but coarser data quality than municipal
-   sources, hence the lower confidence ceiling. See
-   [`docs/NAR_QUERY_CONFIDENCE_RATINGS.md`](docs/NAR_QUERY_CONFIDENCE_RATINGS.md) for how the NAR
-   confidence numbers were derived.
+3. **Tier 3 — National Address Register fallback** (final confidence capped at **0.90**). If
+   Tier 2 does not match, NAR uses a similar component cascade: exact supplied fields, postal/core,
+   FSA/core/city, postal-zone/core, city/core, then fuzzy street matching. NAR uses its own lower
+   strategy scores because coordinate quality can be coarser than municipal sources. Geographic
+   boosts cannot exceed the tier ceiling. Scores are heuristics, not calibrated probabilities;
+   fuzzy matching and penalties can produce scores below 0.36. See the current
+   [confidence policy](docs/NAR_QUERY_CONFIDENCE_RATINGS.md) for all weights and adjustments.
 
 If no tier produces a match, the API returns `404` with a structured error — not a guess.
+When a source supplies only address components (such as Hamilton), `matched_address` is assembled
+from the matched database row, including known unit/civic suffix, city, province and postal code.
+Existing source-provided labels are preserved; request text is never substituted for a matched label.
 
 Every successful result also carries `license_info` and `attribution`, resolved from the
 `data_sources` table for whichever source produced the match, so a consuming application can
@@ -69,7 +73,8 @@ satisfy each open-data licence's attribution requirement. See
 
 **`engine/`** is the geocoding logic itself: `geocoder.py` runs the tier cascade,
 `layered_matcher.py` implements the Tier 2/3 layered matching described above,
-`nar_geocoder.py` holds the NAR-specific methods, `dataset_router.py` and
+`confidence.py` defines strategy scores/tier ceilings, `address_formatter.py` builds missing
+matched labels from database components, `dataset_router.py` and
 `geographic_validator.py` support FSA/municipality resolution, and `license_service.py` resolves
 licence and attribution metadata per data source. It has no HTTP or database-provisioning
 concerns of its own — it expects a connected `asyncpg` pool.
@@ -103,22 +108,45 @@ checksum-verified by `run_migrations.py`), and `seed_data_sources.sql`. See
 
 ### Quick start
 
+Clone this repository, then choose **one** deployment path.
+
+#### Docker (recommended)
+
+Requires Docker Engine and Compose v2; host Python/PostgreSQL/Redis are not required.
+
 ```bash
-git clone <repo-url> && cd geocoder
-
-# Option A: full automated host setup (system packages, uv, database, env, seeds)
-make setup
-
-# Option B: Docker Compose (starts postgres + redis + api)
+cp .env.example .env
+chmod 600 .env
+# Edit .env FIRST: set DB_PASSWORD, REDIS_PASSWORD, API_KEY_PEPPER,
+# ALLOWED_ORIGINS and INITIAL_ADMIN_KEY (32+ random characters).
+# Generate each secret separately with: openssl rand -hex 32
+# Set API_PORT to an unused host port (default 3000).
 make docker-up
+make docker-etl   # downloads + imports; nonzero exit means setup is incomplete
+curl http://localhost:3000/v1/health
 ```
 
-Then bring in address data and start the API:
+Compose starts the API and runs tracked database initialization automatically. Do **not** run
+host `make import-all` or `make dev` against this stack: PostgreSQL has no host port and the API
+is already running. See [the deployment runbook](docs/DEPLOYMENT.md) for authentication,
+per-source imports, verification and recovery. Health means DB/Redis connectivity, not complete data coverage.
+Middlesex municipal data is excluded because permissive reuse rights could not be verified;
+Middlesex requests use the NAR fallback, with its documented coordinate-coverage limitations.
+
+#### Native host (separate alternative)
+
+Use a dedicated VM, not a host already running unrelated PostgreSQL/Redis services.
 
 ```bash
-make import-all   # download + import all confirmed Ontario address sources
-make dev          # start the API on http://localhost:3000, interactive docs at /docs
+export DB_PASSWORD="$(openssl rand -hex 32)"  # retain securely for native setup
+make setup       # system packages, uv, database, environment and seeds
+make import-all  # download + import; review licence prompts
+make dev         # API on http://localhost:3000, interactive docs at /docs
 ```
+
+See [VM setup](docs/VM_SETUP.md). Use `uv sync --frozen` to install the development test tools.
+The test suite needs no database password; tests that exercise configuration use explicit dummy credentials
+and verify that missing production credentials are rejected.
 
 Run `make help` for the full list of targets. The most-used ones:
 
@@ -145,9 +173,9 @@ connection-pool sizing, rate limiting, and batch-processing tuning.
 ### Database migrations
 
 ```bash
-uv run database/run_migrations.py           # apply any migrations not yet applied
-uv run database/run_migrations.py --status  # show what's applied
-uv run database/run_migrations.py --dry-run # preview without applying
+uv run python database/run_migrations.py           # apply any migrations not yet applied
+uv run python database/run_migrations.py --status  # show what's applied
+uv run python database/run_migrations.py --dry-run # preview without applying
 ```
 
 The runner tracks applied migrations in a `schema_migrations` table and verifies the SHA256
@@ -160,6 +188,7 @@ Once the API is running and at least one data source is imported:
 
 ```bash
 curl -X POST http://localhost:3000/v1/geocode \
+  -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "Address": {
@@ -226,6 +255,10 @@ or no Google API key configured, so a plain `pytest` run stays green without any
 infrastructure.
 
 ## Testing
+
+For an imported Docker deployment, also run the [live regression gate](docs/DEPLOYMENT.md#live-regression-gate).
+Unit tests do not certify source coverage or external-data accuracy. Validate real imports and
+live API responses using the deployment runbook before relying on the service.
 
 ```bash
 uv run pytest                                    # full test suite
