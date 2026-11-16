@@ -26,20 +26,20 @@ PSQL       = { [ -n "$(DB_PASS)" ] || { echo "ERROR: DB_PASS is not set - define
 .PHONY: setup
 setup: ## First-time setup: system packages, uv, database, env, seeds
 	@echo "=== Full System Setup ==="
-	bash dependency_setup/setup_all.sh
-	bash dependency_setup/initialize_geocoder.sh
+	bash setup/setup_all.sh
+	bash setup/initialize_geocoder.sh
 
 .PHONY: setup-db
 setup-db: ## Create database, user, extensions, apply schema + migrations
-	bash dependency_setup/setup_database.sh
+	bash setup/setup_database.sh
 
 .PHONY: setup-env
 setup-env: ## Generate .env from template
-	bash dependency_setup/configure_env.sh
+	bash setup/configure_env.sh
 
 .PHONY: setup-python
 setup-python: ## Install uv and sync Python dependencies
-	bash dependency_setup/install_uv.sh
+	bash setup/install_uv.sh
 
 # ---------------------------------------------------------------------------
 # Database targets

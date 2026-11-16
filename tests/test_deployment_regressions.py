@@ -278,9 +278,9 @@ def test_identity_reconciliation_refuses_duplicate_ids(tmp_path):
 
 def test_native_env_keeps_credentials_private_and_existing_file(tmp_path):
     import os, shutil, subprocess
-    scripts=tmp_path/'dependency_setup'; scripts.mkdir()
+    scripts=tmp_path/'setup'; scripts.mkdir()
     script=scripts/'configure_env.sh'
-    shutil.copy(ROOT/'dependency_setup/configure_env.sh',script)
+    shutil.copy(ROOT/'setup/configure_env.sh',script)
     shutil.copy(ROOT/'.env.example',tmp_path/'.env.example')
     env={**os.environ,'DB_PASSWORD':'test_only_hex_password','DB_HOST':'localhost','DB_NAME':'geocoder','DB_USER':'geocoder'}
     run=subprocess.run(['bash',str(script)],env=env,capture_output=True,text=True)

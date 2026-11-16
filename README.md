@@ -65,7 +65,7 @@ satisfy each open-data licence's attribution requirement. See
 ├── engine/              Geocoding engine: the 3-tier cascade described above
 ├── data_sourcing/       ETL pipeline: downloaders -> transformers -> importers
 ├── database/            PostgreSQL + PostGIS schema and migrations
-├── dependency_setup/    VM/host provisioning scripts
+├── setup/               VM/host provisioning scripts
 ├── config/              Operational config (dataset field mappings)
 ├── docs/                Deeper reference docs (see "Further documentation" below)
 └── tests/               Test suite

@@ -39,7 +39,7 @@ High-level overview of the `data_sourcing/` module.
 
 ```bash
 # Unified setup (schema + migrations + seed)
-./dependency_setup/initialize_geocoder.sh
+./setup/initialize_geocoder.sh
 
 # Download + import all confirmed sources
 DB_HOST=localhost uv run data_sourcing/setup_data.py --all-confirmed

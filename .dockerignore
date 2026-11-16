@@ -63,7 +63,7 @@ guelph_*.json
 ottawa_*.json
 
 # Data sourcing setup tooling (not needed at runtime)
-dependency_setup/
+setup/
 
 # Docker files (no need to copy into image)
 Dockerfile

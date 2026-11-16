@@ -36,13 +36,13 @@ The `initialize_geocoder.sh` script is the single entry point for setting up the
 
 ```bash
 # Quick setup - migrations + data seeding only (assumes system deps installed)
-./dependency_setup/initialize_geocoder.sh
+./setup/initialize_geocoder.sh
 
 # Full setup including system packages (for fresh VM installations)
-./dependency_setup/initialize_geocoder.sh --full
+./setup/initialize_geocoder.sh --full
 
 # Setup and import all confirmed data sources
-./dependency_setup/initialize_geocoder.sh --import-data
+./setup/initialize_geocoder.sh --import-data
 ```
 
 **What it does:**
@@ -54,20 +54,20 @@ The `initialize_geocoder.sh` script is the single entry point for setting up the
 
 ### Option 2: Step-by-Step Setup
 
-For more control, run individual scripts in `dependency_setup/`:
+For more control, run individual scripts in `setup/`:
 
 ```bash
 # 1. Install system packages (PostgreSQL, Redis, Python)
-./dependency_setup/vm_setup.sh
+./setup/vm_setup.sh
 
 # 2. Install uv package manager
-./dependency_setup/install_uv.sh
+./setup/install_uv.sh
 
 # 3. Set up PostgreSQL database
-./dependency_setup/setup_database.sh
+./setup/setup_database.sh
 
 # 4. Create .env configuration file
-./dependency_setup/configure_env.sh
+./setup/configure_env.sh
 
 # 5. Run migrations with tracking
 uv run python database/run_migrations.py
@@ -80,7 +80,7 @@ After running these scripts, you'll have a fully configured development environm
 ### Step 1: System Packages
 
 ```bash
-./dependency_setup/vm_setup.sh
+./setup/vm_setup.sh
 ```
 
 This script:
@@ -97,7 +97,7 @@ This script:
 ### Step 2: Install uv
 
 ```bash
-./dependency_setup/install_uv.sh
+./setup/install_uv.sh
 ```
 
 This script:
@@ -120,7 +120,7 @@ uv run python your_script.py
 ### Step 3: Database Setup
 
 ```bash
-./dependency_setup/setup_database.sh
+./setup/setup_database.sh
 ```
 
 This script:
@@ -162,7 +162,7 @@ PGPASSWORD="$DB_PASSWORD" psql -h localhost -U geocoder -d geocoder
 ### Step 5: Environment Configuration
 
 ```bash
-./dependency_setup/configure_env.sh
+./setup/configure_env.sh
 ```
 
 This script:
