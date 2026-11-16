@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#   "asyncpg",
-#   "python-dotenv",
-# ]
-# ///
 """
 ETL Pipeline Verification
 
@@ -22,6 +15,7 @@ Usage:
 import argparse
 import asyncio
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -164,11 +158,25 @@ class TimingInfo:
 # Database helpers
 # ============================================================================
 
+def validate_verify_db(db_name: str) -> None:
+    """Reject production/system targets and ambiguous CLI/database names.
+
+    Call at every mutating entrypoint, not only main: imported helpers must be
+    safe too. This tool may create/drop ONLY an explicitly disposable database.
+    """
+    production = get_db_config()['database']
+    if (not re.fullmatch(r'[a-z_][a-z0-9_]{0,62}', db_name)
+            or db_name.casefold() in {production.casefold(), 'postgres', 'template0', 'template1'}):
+        raise ValueError('Verification database must be a distinct, disposable database '
+                         '(lowercase identifier, at most 63 characters); production '
+                         'and PostgreSQL system databases are forbidden')
+
+
 def get_psql_args_for_db(db_name: str) -> list[str]:
     """Get psql CLI args targeting a specific database."""
     config = get_db_config()
     return ['-h', config['host'], '-p', str(config['port']),
-            '-U', config['user'], '-d', db_name]
+            '-U', config['user'], '-d', db_name, '-v', 'ON_ERROR_STOP=1']
 
 
 async def connect_to_db(db_name: str) -> asyncpg.Connection:
@@ -235,6 +243,11 @@ async def get_common_data_columns(
     prod_map = {name: udt for name, udt in prod_columns}
     verify_set = {name for name, _ in verify_columns}
 
+    verify_map = dict(verify_columns)
+    mismatched_types = [name for name, udt in prod_columns
+                        if name in verify_map and udt != verify_map[name]]
+    if mismatched_types:
+        raise ValueError(f'Data column types differ in {table_name}: {mismatched_types}')
     common = [(name, udt) for name, udt in prod_columns if name in verify_set]
     only_prod = sorted(set(prod_map) - verify_set)
     only_verify = sorted(verify_set - set(prod_map))
@@ -267,12 +280,25 @@ async def preflight_checks(args) -> bool:
     config = get_db_config()
     prod_db = config['database']
     verify_db = args.verify_db_name
+    try:
+        validate_verify_db(verify_db)
+    except ValueError as error:
+        print(f'  [FAIL] {error}')
+        return False
 
     # Check production DB
     try:
         conn = await connect_to_db(prod_db)
-        count = await conn.fetchval("SELECT COUNT(*) FROM properties")
-        await conn.close()
+        try:
+            count = await conn.fetchval("SELECT COUNT(*) FROM properties")
+            if args.source:
+                status = await conn.fetchval(
+                    'SELECT status FROM data_sources WHERE source_key = $1', args.source)
+                if status != 'confirmed':
+                    print(f"  [FAIL] Source '{args.source}' is missing or not confirmed")
+                    return False
+        finally:
+            await conn.close()
         if count == 0:
             print(f"  [WARN] Production database '{prod_db}' has 0 properties")
         else:
@@ -327,6 +353,7 @@ async def preflight_checks(args) -> bool:
 def create_verify_db(db_name: str, admin_user: Optional[str] = None,
                      admin_password: Optional[str] = None) -> bool:
     """Create the empty verification database."""
+    validate_verify_db(db_name)
     config = get_db_config()
     user = admin_user or config['user']
     password = admin_password or config['password']
@@ -350,7 +377,8 @@ def create_verify_db(db_name: str, admin_user: Optional[str] = None,
 
 def init_verify_db(db_name: str, admin_user: Optional[str] = None,
                    admin_password: Optional[str] = None) -> bool:
-    """Apply schema and migrations to the verify database."""
+    """Apply tracked schema, migrations and seeds to the verify database."""
+    validate_verify_db(db_name)
     config = get_db_config()
     env = get_psql_env()
     psql_args = get_psql_args_for_db(db_name)
@@ -362,7 +390,7 @@ def init_verify_db(db_name: str, admin_user: Optional[str] = None,
     if admin_user:
         admin_env = {**os.environ, 'PGPASSWORD': admin_password or config['password']}
         admin_args = ['-h', config['host'], '-p', str(config['port']),
-                      '-U', admin_user, '-d', db_name]
+                      '-U', admin_user, '-d', db_name, '-v', 'ON_ERROR_STOP=1']
         result = subprocess.run(
             ['psql'] + admin_args + ['-c', postgis_sql],
             env=admin_env, capture_output=True, text=True
@@ -382,23 +410,8 @@ def init_verify_db(db_name: str, admin_user: Optional[str] = None,
         return False
     print(f"  [OK] PostGIS extension enabled")
 
-    # Apply schema via psql
-    schema_path = PROJECT_ROOT / 'database' / 'schema.sql'
-    if not schema_path.exists():
-        print(f"  [FAIL] schema.sql not found: {schema_path}")
-        return False
-
-    result = subprocess.run(
-        ['psql'] + psql_args + ['-f', str(schema_path)],
-        env=env, capture_output=True, text=True
-    )
-    if result.returncode != 0 and 'ERROR' in result.stderr:
-        print(f"  [FAIL] schema.sql: {result.stderr[:300]}")
-        return False
-    print(f"  [OK] Applied schema.sql")
-
-    # Apply migrations via run_migrations.py — the same code path production
-    # uses (raw `psql -f migrations.sql` bypasses the parser and tracking)
+    # Use the same tracked initializer as deployment, including legacy replay.
+    # Do not maintain a second raw-SQL schema/seed path here.
     runner_path = PROJECT_ROOT / 'database' / 'run_migrations.py'
     if not runner_path.exists():
         print(f"  [FAIL] run_migrations.py not found: {runner_path}")
@@ -413,7 +426,7 @@ def init_verify_db(db_name: str, admin_user: Optional[str] = None,
         'DB_PASSWORD': config['password'],
     }
     result = subprocess.run(
-        [sys.executable, str(runner_path)],
+        [sys.executable, str(runner_path), '--initialize', '--replay-unverified'],
         env=runner_env, capture_output=True, text=True
     )
     if result.returncode != 0:
@@ -421,20 +434,6 @@ def init_verify_db(db_name: str, admin_user: Optional[str] = None,
         print(f"  [FAIL] run_migrations.py: {detail[:300]}")
         return False
     print(f"  [OK] Applied migrations via run_migrations.py")
-
-    # Seed file may be in database/ or data_sourcing/
-    for candidate in [PROJECT_ROOT / 'database' / 'seed_data_sources.sql',
-                      PROJECT_ROOT / 'data_sourcing' / 'seed_data_sources.sql']:
-        if candidate.exists():
-            result = subprocess.run(
-                ['psql'] + psql_args + ['-f', str(candidate)],
-                env=env, capture_output=True, text=True
-            )
-            if result.returncode != 0 and 'ERROR' in result.stderr:
-                print(f"  [FAIL] seed_data_sources.sql: {result.stderr[:300]}")
-                return False
-            print(f"  [OK] Applied seed_data_sources.sql")
-            break
 
     # Verify PostGIS is functional
     result = subprocess.run(
@@ -455,6 +454,7 @@ def init_verify_db(db_name: str, admin_user: Optional[str] = None,
 
 def run_etl(args, verify_db_name: str) -> bool:
     """Run the ETL pipeline against the verify database."""
+    validate_verify_db(verify_db_name)
     config = get_db_config()
     run_env = {
         **os.environ,
@@ -465,7 +465,7 @@ def run_etl(args, verify_db_name: str) -> bool:
         'DB_PASSWORD': config['password'],
     }
 
-    cmd = ['uv', 'run', str(PROJECT_ROOT / 'data_sourcing' / 'setup_data.py')]
+    cmd = [sys.executable, str(PROJECT_ROOT / 'data_sourcing' / 'setup_data.py')]
 
     if args.source:
         cmd.extend(['--source', args.source])
@@ -491,14 +491,15 @@ def run_etl(args, verify_db_name: str) -> bool:
 
 def run_postal_codes_import(verify_db_name: str) -> bool:
     """Import commercial postal codes if source data exists."""
+    validate_verify_db(verify_db_name)
     if not POSTAL_DATA_FILE.exists():
         print(f"  [SKIP] Postal codes: data file not found")
         return True
 
     script_path = PROJECT_ROOT / 'data_sourcing' / 'importers' / 'import_postal_codes.py'
     if not script_path.exists():
-        print(f"  [SKIP] Postal codes: import script not found")
-        return True
+        print(f"  [FAIL] Postal codes: import script not found")
+        return False
 
     config = get_db_config()
     run_env = {
@@ -510,7 +511,7 @@ def run_postal_codes_import(verify_db_name: str) -> bool:
         'DB_PASSWORD': config['password'],
     }
 
-    cmd = ['uv', 'run', str(script_path), '--file', str(POSTAL_DATA_FILE)]
+    cmd = [sys.executable, str(script_path), '--file', str(POSTAL_DATA_FILE)]
     print(f"  Importing postal codes...")
     result = subprocess.run(cmd, env=run_env, cwd=str(script_path.parent))
 
@@ -531,6 +532,7 @@ def copy_dependency_tables(verify_db_name: str) -> None:
     columns like province_id). Copying from production ensures the verify DB
     has the correct structure and data.
     """
+    validate_verify_db(verify_db_name)
     config = get_db_config()
     env = get_psql_env()
 
@@ -548,25 +550,20 @@ def copy_dependency_tables(verify_db_name: str) -> None:
 
         dump = subprocess.run(dump_cmd, env=env, capture_output=True, text=True)
         if dump.returncode != 0 or not dump.stdout:
-            print(f"  [WARN] Could not dump {table}: {dump.stderr[:200]}")
-            continue
+            raise RuntimeError(f'Could not dump dependency table {table}: {dump.stderr[:200]}')
 
         restore = subprocess.run(
             restore_cmd, input=dump.stdout, env=env,
             capture_output=True, text=True
         )
-        if restore.returncode == 0:
-            print(f"  [OK] Copied {table} from production")
-        else:
-            # pg_restore may warn but still succeed
-            if 'ERROR' in restore.stderr:
-                print(f"  [WARN] Errors restoring {table}: {restore.stderr[:200]}")
-            else:
-                print(f"  [OK] Copied {table} from production")
+        if restore.returncode != 0:
+            raise RuntimeError(f'Could not restore dependency table {table}: {restore.stderr[:200]}')
+        print(f"  [OK] Copied {table} from production")
 
 
 async def ensure_boundary_tables(verify_db_name: str) -> None:
     """Copy boundary tables from production if empty in verify DB."""
+    validate_verify_db(verify_db_name)
     conn = await connect_to_db(verify_db_name)
     try:
         fsa = await conn.fetchval("SELECT COUNT(*) FROM fsa_boundaries")
@@ -586,10 +583,12 @@ async def sync_data_sources(verify_db_name: str) -> None:
     etc. than what the download scripts set in production. For --import-only
     mode, these must match so the importer can find cached files.
     """
+    validate_verify_db(verify_db_name)
     config = get_db_config()
     prod_conn = await connect_to_db(config['database'])
-    verify_conn = await connect_to_db(verify_db_name)
+    verify_conn = None
     try:
+        verify_conn = await connect_to_db(verify_db_name)
         # Get updatable columns (skip id and timestamps)
         cols_rows = await prod_conn.fetch("""
             SELECT column_name FROM information_schema.columns
@@ -616,12 +615,16 @@ async def sync_data_sources(verify_db_name: str) -> None:
 
         print(f"  [OK] Synced {len(rows)} data sources from production")
     finally:
-        await prod_conn.close()
-        await verify_conn.close()
+        try:
+            if verify_conn is not None:
+                await verify_conn.close()
+        finally:
+            await prod_conn.close()
 
 
 async def run_setup_transformers(verify_db_name: str) -> None:
     """Re-run setup transformers to populate derived tables."""
+    validate_verify_db(verify_db_name)
     config = get_db_config()
     pool = await asyncpg.create_pool(
         host=config['host'], port=config['port'],
@@ -645,9 +648,10 @@ async def run_setup_transformers(verify_db_name: str) -> None:
             result = await fsa_setup.ensure_setup(pool, force=True)
             print(f"  FSAMunicipalitySetup: {result.status} "
                   f"({result.rows_affected} rows, {result.duration_seconds:.1f}s)")
+            if result.status == 'error':
+                raise RuntimeError(f'FSAMunicipalitySetup failed: {result.reason}')
         else:
-            print(f"  [SKIP] FSAMunicipalitySetup: missing boundary data "
-                  f"(fsa={fsa_count}, muni={muni_count})")
+            raise RuntimeError(f'Missing boundary data (fsa={fsa_count}, muni={muni_count})')
 
         from data_sourcing.transformers.municipality_alias_setup import (
             MunicipalityAliasSetup,
@@ -656,69 +660,10 @@ async def run_setup_transformers(verify_db_name: str) -> None:
         result = await alias_setup.ensure_setup(pool, force=True)
         print(f"  MunicipalityAliasSetup: {result.status} "
               f"({result.rows_affected} rows, {result.duration_seconds:.1f}s)")
+        if result.status == 'error':
+            raise RuntimeError(f'MunicipalityAliasSetup failed: {result.reason}')
     finally:
         await pool.close()
-
-
-async def get_completed_sources(verify_db_name: str) -> set[str]:
-    """
-    Query import_history in the verify DB to find sources that completed successfully.
-
-    import_history.source_key stores the dataset_mapping_key (e.g., 'brantford_addresses'),
-    while data_sources.source_key is what setup_data.py expects (e.g., 'brantford').
-    This function maps back through data_sources to return data_sources.source_key values.
-
-    Returns set of data_sources.source_key values with at least one completed import.
-    """
-    try:
-        conn = await connect_to_db(verify_db_name)
-        try:
-            # Get raw completed keys from import_history
-            rows = await conn.fetch("""
-                SELECT DISTINCT source_key
-                FROM import_history
-                WHERE status = 'completed'
-            """)
-            completed_import_keys = {r['source_key'] for r in rows}
-
-            # Map back to data_sources.source_key via dataset_mapping_key
-            # A source is complete if its source_key OR dataset_mapping_key
-            # appears in the completed import_history entries
-            ds_rows = await conn.fetch("""
-                SELECT source_key, dataset_mapping_key, local_file_path
-                FROM data_sources
-                WHERE status = 'confirmed'
-            """)
-            completed = set()
-            for r in ds_rows:
-                sk = r['source_key']
-                dmk = r['dataset_mapping_key']
-                if sk in completed_import_keys or (dmk and dmk in completed_import_keys):
-                    # NAR has multiple parts — only mark complete if all parts imported
-                    if sk == 'nar_ontario':
-                        nar_dir = PROJECT_ROOT / (
-                            r['local_file_path'] or f'data_sourcing/data_sources/{sk}'
-                        )
-                        expected_parts = (
-                            len(list(nar_dir.glob('**/Address_35*.csv')))
-                            if nar_dir.exists() else 0
-                        )
-                        actual_completed = await conn.fetchval("""
-                            SELECT COUNT(*) FROM import_history
-                            WHERE source_key = 'nar_ontario' AND status = 'completed'
-                        """)
-                        if expected_parts > 0 and actual_completed >= expected_parts:
-                            completed.add(sk)
-                        # else: NAR is NOT complete, needs re-import
-                    else:
-                        completed.add(sk)
-
-            return completed
-        finally:
-            await conn.close()
-    except Exception as e:
-        print(f"  [WARN] Could not query import_history: {e}")
-        return set()
 
 
 async def get_all_confirmed_sources(prod_db_name: str) -> list[str]:
@@ -735,38 +680,10 @@ async def get_all_confirmed_sources(prod_db_name: str) -> list[str]:
         await conn.close()
 
 
-async def clean_nar_for_reimport(verify_db_name: str) -> bool:
-    """Remove old NAR data if corrupted by stale-deletion bug.
-
-    Only cleans if soft-deleted rows exist (indicating the old stale-detection
-    bug damaged the data). If no soft-deleted rows, returns False (no cleanup needed).
-
-    Returns True if cleanup was performed, False if data was already clean.
-    """
-    conn = await connect_to_db(verify_db_name)
-    try:
-        deleted_count = await conn.fetchval(
-            "SELECT COUNT(*) FROM nar_addresses WHERE is_deleted = TRUE"
-        )
-        if deleted_count == 0:
-            return False
-
-        addr_count = await conn.fetchval("SELECT COUNT(*) FROM nar_addresses")
-        await conn.execute("DELETE FROM nar_addresses")
-        await conn.execute("DELETE FROM nar_locations")
-        await conn.execute(
-            "DELETE FROM import_history WHERE source_key = 'nar_ontario'"
-        )
-        print(f"  [OK] Cleared corrupted NAR data for clean re-import "
-              f"({addr_count:,} addresses, {deleted_count:,} were soft-deleted)")
-        return True
-    finally:
-        await conn.close()
-
-
 def run_etl_single_source(source_key: str, verify_db_name: str,
                           full_download: bool) -> bool:
     """Run ETL for a single source against the verify database."""
+    validate_verify_db(verify_db_name)
     config = get_db_config()
     run_env = {
         **os.environ,
@@ -777,7 +694,7 @@ def run_etl_single_source(source_key: str, verify_db_name: str,
         'DB_PASSWORD': config['password'],
     }
 
-    cmd = ['uv', 'run', str(PROJECT_ROOT / 'data_sourcing' / 'setup_data.py'),
+    cmd = [sys.executable, str(PROJECT_ROOT / 'data_sourcing' / 'setup_data.py'),
            '--source', source_key, '--accept-non-commercial']
 
     if not full_download:
@@ -789,30 +706,25 @@ def run_etl_single_source(source_key: str, verify_db_name: str,
 
 async def run_etl_resume(args, verify_db_name: str) -> bool:
     """
-    Resume ETL by running only sources that haven't completed yet.
+    Replay confirmed sources using the normal importers' per-file hash checks.
 
-    Queries import_history in the verify DB, compares against all confirmed
-    sources in production, and runs setup_data.py --source for each missing one.
+    A historical completed row (or a count of completed NAR parts) cannot prove
+    that the latest input and enrichment succeeded. Never delete NAR rows or
+    audit history to resume: successful unchanged files can be skipped by their
+    importer, while failed/changed files and enrichment are retried normally.
     """
+    validate_verify_db(verify_db_name)
     config = get_db_config()
-    prod_db = config['database']
-
-    # Find what's already done and what needs doing
-    completed = await get_completed_sources(verify_db_name)
-    all_sources = await get_all_confirmed_sources(prod_db)
-
-    if args.source:
-        # Single source mode — just check if that one is done
-        pending = [args.source] if args.source not in completed else []
-    else:
-        pending = [s for s in all_sources if s not in completed]
-
+    all_sources = await get_all_confirmed_sources(config['database'])
+    if args.source and args.source not in all_sources:
+        print(f"  [FAIL] Source '{args.source}' is missing or not confirmed")
+        return False
+    pending = [args.source] if args.source else all_sources
     if not pending:
-        print(f"  [OK] All {len(all_sources)} sources already imported, nothing to resume")
-        return True
+        print('  [FAIL] No confirmed sources to resume')
+        return False
 
-    print(f"  Already completed: {len(completed)} source(s)")
-    print(f"  Remaining: {len(pending)} source(s)")
+    print(f"  Replaying: {len(pending)} source(s), with importer hash checks")
     for s in pending:
         print(f"    - {s}")
 
@@ -821,10 +733,6 @@ async def run_etl_resume(args, verify_db_name: str) -> bool:
     fail_count = 0
     for i, source_key in enumerate(pending, 1):
         print(f"\n  [{i}/{len(pending)}] Importing {source_key}...")
-        if source_key == 'nar_ontario':
-            cleaned = await clean_nar_for_reimport(verify_db_name)
-            if not cleaned:
-                print(f"  [OK] NAR data is clean, no cleanup needed")
         if run_etl_single_source(source_key, verify_db_name, args.full_download):
             success_count += 1
             print(f"  [OK] {source_key}")
@@ -848,12 +756,11 @@ async def compare_table_full(
     """Full MD5 hash comparison for a table."""
     table = config.name
 
-    # Check table exists in both databases
+    # Required tables must exist on both sides; absence is not a passing skip.
     for label, conn in [("production", prod_conn), ("verify", verify_conn)]:
         if not await table_exists(conn, table):
             return TableResult(
-                table_name=table, passed=True, skipped=True,
-                skip_reason=f"Table missing in {label}"
+                table_name=table, passed=False, error=f"Table missing in {label}"
             )
 
     # Discover data columns (intersection of both DBs)
@@ -870,9 +777,8 @@ async def compare_table_full(
         schema_note = f"Schema diff: {'; '.join(parts)}"
     if not columns:
         return TableResult(
-            table_name=table, passed=True, skipped=True,
-            skip_reason="No common data columns",
-            error=schema_note or None,
+            table_name=table, passed=False,
+            error=schema_note or 'No common data columns',
         )
     if schema_note:
         print(f"    [NOTE] {table}: {schema_note} — comparing {len(columns)} common columns")
@@ -954,12 +860,12 @@ async def compare_table_full(
 
     prod_total = sum(g.prod_count for g in groups)
     verify_total = sum(g.verify_count for g in groups)
-    all_passed = all(g.passed for g in groups)
+    all_passed = all(g.passed for g in groups) and not schema_note
 
     result = TableResult(
         table_name=table, passed=all_passed,
         prod_total=prod_total, verify_total=verify_total,
-        num_groups=len(groups), groups=groups,
+        num_groups=len(groups), groups=groups, error=schema_note or None,
     )
 
     # Verbose: row-level diff for failed groups
@@ -1000,8 +906,7 @@ async def compare_table_quick(
     for label, conn in [("production", prod_conn), ("verify", verify_conn)]:
         if not await table_exists(conn, table):
             return TableResult(
-                table_name=table, passed=True, skipped=True,
-                skip_reason=f"Table missing in {label}"
+                table_name=table, passed=False, error=f"Table missing in {label}"
             )
 
     where_parts = []
@@ -1051,9 +956,14 @@ async def compare_table_quick(
         ))
 
     # Sample comparison: hash first 1000 rows by natural key
-    columns, _, _ = await get_common_data_columns(
+    columns, only_prod_cols, only_verify_cols = await get_common_data_columns(
         prod_conn, verify_conn, table, config.excluded_columns
     )
+    if not columns or only_prod_cols or only_verify_cols:
+        return TableResult(
+            table_name=table, passed=False,
+            error='No comparable schema: missing or differing data columns',
+        )
     sample_mismatch = False
     if columns:
         col_exprs = ", ".join(build_col_expr(n, u) for n, u in columns)
@@ -1227,6 +1137,7 @@ async def show_diff_summary(
 
 async def compare_databases(args, timing: TimingInfo) -> list[TableResult]:
     """Run Phase 3: compare production vs verify database."""
+    validate_verify_db(args.verify_db_name)
     print("\n--- Phase 3: Compare Databases ---")
     start = time.time()
 
@@ -1235,37 +1146,37 @@ async def compare_databases(args, timing: TimingInfo) -> list[TableResult]:
     verify_db = args.verify_db_name
 
     prod_conn = await connect_to_db(prod_db)
-    verify_conn = await connect_to_db(verify_db)
-
-    # Resolve source_key to the source_dataset name used in properties table
-    source_filter = args.source
-    if source_filter:
-        mapping = await prod_conn.fetchval(
-            "SELECT dataset_mapping_key FROM data_sources WHERE source_key = $1",
-            source_filter
-        )
-        if mapping:
-            source_filter = mapping
-            print(f"  Source filter: {args.source} -> source_dataset='{source_filter}'")
-
+    verify_conn = None
     results = []
     try:
+        verify_conn = await connect_to_db(verify_db)
+        # Resolve source_key to the source_dataset name used in properties.
+        source_filter = args.source
+        if source_filter:
+            mapping = await prod_conn.fetchval(
+                'SELECT dataset_mapping_key FROM data_sources WHERE source_key = $1',
+                source_filter,
+            )
+            if mapping:
+                source_filter = mapping
+                print(f"  Source filter: {args.source} -> source_dataset='{source_filter}'")
+
         for tc in TABLE_CONFIGS:
-            # When --source is set, skip unrelated tables that are empty in verify
+            # Skip only explicitly unrelated tables, never a selected source's
+            # required table merely because it is missing or empty.
             if args.source:
-                is_properties = tc.group_by == 'source_dataset'
-                is_data_sources = tc.name == 'data_sources'
-                if not is_properties and not is_data_sources:
-                    if await table_exists(verify_conn, tc.name):
-                        vc = await verify_conn.fetchval(
-                            f"SELECT COUNT(*) FROM {tc.name}"
-                        )
-                        if vc == 0:
-                            results.append(TableResult(
-                                table_name=tc.name, passed=True, skipped=True,
-                                skip_reason=f"Empty (--source {args.source})"
-                            ))
-                            continue
+                source_tables = {
+                    'nar_ontario': {'nar_addresses', 'nar_locations'},
+                    'fsa_boundaries': {'fsa_boundaries'},
+                    'ontario_municipal_boundaries': {'lower_municipal_boundaries'},
+                }
+                required = source_tables.get(args.source, {'properties'}) | {'data_sources'}
+                if tc.name not in required:
+                    results.append(TableResult(
+                        table_name=tc.name, passed=True, skipped=True,
+                        skip_reason=f'Unrelated to source {args.source}',
+                    ))
+                    continue
 
             print(f"  Comparing {tc.name}...", end="", flush=True)
             t0 = time.time()
@@ -1296,8 +1207,11 @@ async def compare_databases(args, timing: TimingInfo) -> list[TableResult]:
             results.append(result)
 
     finally:
-        await prod_conn.close()
-        await verify_conn.close()
+        try:
+            if verify_conn is not None:
+                await verify_conn.close()
+        finally:
+            await prod_conn.close()
 
     timing.comparison = time.time() - start
     return results
@@ -1421,6 +1335,7 @@ def generate_report(
 def cleanup_verify_db(db_name: str, admin_user: Optional[str] = None,
                       admin_password: Optional[str] = None):
     """Drop the verification database."""
+    validate_verify_db(db_name)
     config = get_db_config()
     user = admin_user or config['user']
     password = admin_password or config['password']
@@ -1432,7 +1347,7 @@ def cleanup_verify_db(db_name: str, admin_user: Optional[str] = None,
         env=env, capture_output=True, text=True
     )
     if result.returncode != 0:
-        print(f"  [WARN] Failed to drop '{db_name}': {result.stderr.strip()}")
+        raise RuntimeError(f"Failed to drop verification database '{db_name}': {result.stderr.strip()}")
     else:
         print(f"  [OK] Dropped database '{db_name}'")
 
@@ -1453,13 +1368,13 @@ Examples:
   # Full verification (all sources, import-only)
   uv run python data_sourcing/management/verify_etl_pipeline.py
 
-  # Resume after a partial run (imports only sources not yet completed)
+  # Resume after a partial run (replays sources with importer file-hash checks)
   uv run python data_sourcing/management/verify_etl_pipeline.py --resume
 
   # Re-compare without re-running ETL
   uv run python data_sourcing/management/verify_etl_pipeline.py --skip-etl --verbose
 
-  # Quick count-only check
+  # Quick counts plus first-1000-row hash samples
   uv run python data_sourcing/management/verify_etl_pipeline.py --quick
         """
     )
@@ -1471,7 +1386,7 @@ Examples:
         help="Don't drop verify DB after comparison")
     parser.add_argument(
         '--verify-db-name', default='geocoder_verify',
-        help='Verification database name (default: geocoder_verify)')
+        help='Disposable database, distinct from DB_NAME (default: geocoder_verify)')
     parser.add_argument(
         '--source',
         help='Only verify a specific source_key')
@@ -1481,12 +1396,13 @@ Examples:
     parser.add_argument(
         '--report',
         help='Write report to file (default: stdout only)')
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         '--skip-etl', action='store_true',
         help='Skip ETL run, compare existing verify DB')
-    parser.add_argument(
+    mode.add_argument(
         '--resume', action='store_true',
-        help='Resume a partial ETL run: reuse existing verify DB, import only sources not yet completed')
+        help='Reuse existing verify DB; replay sources with importer file-hash checks')
     parser.add_argument(
         '--verbose', action='store_true',
         help='Show per-row diffs for mismatched tables')
@@ -1501,7 +1417,12 @@ Examples:
         help='Password for admin user (default: same as DB_PASSWORD)')
 
     args = parser.parse_args()
+    try:
+        validate_verify_db(args.verify_db_name)
+    except ValueError as error:
+        parser.error(str(error))
     timing = TimingInfo()
+    etl_ok = postal_ok = True
     total_start = time.time()
 
     # Phase 0: Pre-flight
@@ -1509,7 +1430,7 @@ Examples:
         sys.exit(1)
 
     if args.resume:
-        # Resume mode: reuse existing verify DB, run only missing sources
+        # Resume mode: reuse existing verify DB and replay safely.
         print("\n--- Phase 1: Skipped (--resume, reusing existing verify DB) ---")
 
         print("\n--- Phase 2: Resume ETL Pipeline ---")
@@ -1526,7 +1447,7 @@ Examples:
             print("  [WARN] ETL had errors, continuing with comparison...")
 
         # Import postal codes (separate from main ETL)
-        run_postal_codes_import(args.verify_db_name)
+        postal_ok = run_postal_codes_import(args.verify_db_name)
 
         # Re-run setup transformers for derived tables
         print("  Running setup transformers...")
@@ -1567,7 +1488,7 @@ Examples:
             print("  [WARN] ETL had errors, continuing with comparison...")
 
         # Import postal codes (separate from main ETL)
-        run_postal_codes_import(args.verify_db_name)
+        postal_ok = run_postal_codes_import(args.verify_db_name)
 
         # Re-run setup transformers for derived tables
         print("  Running setup transformers...")
@@ -1579,6 +1500,15 @@ Examples:
 
     # Phase 3: Compare databases
     results = await compare_databases(args, timing)
+    if not etl_ok:
+        results.append(TableResult('etl_pipeline', passed=False, error='ETL subprocess failed'))
+    if not postal_ok:
+        results.append(TableResult('postal_import', passed=False, error='Postal import failed'))
+    compared = [r for r in results if not r.skipped]
+    all_passed = bool(compared) and all(r.passed and not r.error for r in compared)
+    if not compared:
+        print('  [FAIL] No tables were compared')
+        results.append(TableResult('verification', passed=False, error='No tables were compared'))
 
     timing.total = time.time() - total_start
 
@@ -1594,16 +1524,14 @@ Examples:
 
     # Phase 5: Cleanup
     # --resume and --skip-etl default to keeping the DB (user may resume again)
-    if not args.keep_verify_db and not args.skip_etl and not args.resume:
+    if all_passed and not args.keep_verify_db and not args.skip_etl and not args.resume:
         print("\n--- Phase 5: Cleanup ---")
         cleanup_verify_db(args.verify_db_name, args.admin_user,
                           args.admin_password)
-    elif args.keep_verify_db or args.resume:
+    else:
         print(f"\n--- Verify DB retained: {args.verify_db_name} ---")
 
-    # Exit code based on comparison results
-    compared = [r for r in results if not r.skipped]
-    all_passed = all(r.passed for r in compared) if compared else True
+    # ETL failures, incomplete comparisons and table mismatches all fail closed.
     sys.exit(0 if all_passed else 1)
 
 

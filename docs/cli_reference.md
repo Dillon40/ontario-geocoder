@@ -71,8 +71,49 @@ for the coverage tradeoff and upgrade behavior.
 | `make test-parser` | Run `tests/engine/test_address_parser.py` only |
 | `make test-transformers` | Run `tests/data_sourcing/transformers/` only |
 | `make verify` | Run `data_sourcing/management/verify_etl_pipeline.py --diff`, comparing a verify DB against prod |
-| `make verify-quick` | Count-only verification, no hash comparison |
+| `make verify-quick` | Row counts plus hashes of the first 1,000 rows by natural key |
 | `make verify-skip-etl` | Re-compare an existing verify DB without re-running the ETL |
+
+### ETL database verification safety
+
+`data_sourcing/management/verify_etl_pipeline.py` is an operator CLI, not a pytest
+suite. It creates/imports into a **disposable** database on the configured PostgreSQL
+server and compares it against `DB_NAME`. Run it only with the intended database
+configuration and sufficient permissions for database creation and PostGIS setup;
+it is not a host-side command for the private Docker database network.
+
+```bash
+# Keep the verification database for inspection after a single-source run.
+uv run python -m data_sourcing.management.verify_etl_pipeline \
+  --source guelph_addresses --verify-db-name geocoder_verify --keep-verify-db
+
+# Reuse it; importer file-hash checks skip successful unchanged files where supported.
+uv run python -m data_sourcing.management.verify_etl_pipeline \
+  --source guelph_addresses --verify-db-name geocoder_verify --resume
+
+# Compare existing data without importing or dropping the verification database.
+uv run python -m data_sourcing.management.verify_etl_pipeline \
+  --source guelph_addresses --verify-db-name geocoder_verify --skip-etl
+```
+
+- Targets matching `DB_NAME`, PostgreSQL system databases, and invalid/ambiguous
+  database names are rejected before work starts. Custom targets must be disposable,
+  lowercase identifiers of at most 63 characters.
+- Fresh initialization uses the tracked migration runner; PostgreSQL commands stop
+  on SQL errors. Child importers use the current locked Python environment.
+- `--resume` and `--skip-etl` are mutually exclusive. Resume replays selected confirmed
+  sources through normal importers and enrichment; it does not infer completion from
+  historical row counts or delete NAR records/audit history as a repair shortcut.
+- Failed ETL/postal imports, dependency restoration, setup transformers, required-table
+  absence, incompatible data columns/types, and no completed table comparisons cannot
+  report success. Single-source mode skips only explicitly unrelated tables.
+- Successful fresh runs drop the verification database unless `--keep-verify-db` is set.
+  Comparison/ETL failures retain it for inspection; `--resume` and `--skip-etl` also retain
+  it. Initialization failures attempt to clean up the newly created database. A database
+  damaged by an older verifier may need a fresh verification run, not a resume.
+- `--quick` checks counts and a deterministic first-1,000-row hash sample, not full
+  equality. Use the default full comparison for an exhaustive data comparison of the
+  configured tables/columns (volatile audit fields are intentionally excluded).
 
 ### Utilities
 

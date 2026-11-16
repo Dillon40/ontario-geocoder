@@ -171,7 +171,7 @@ verify: ## Run ETL verification (compare verify DB vs prod)
 	uv run python data_sourcing/management/verify_etl_pipeline.py --diff --report etl_verification_report.txt
 
 .PHONY: verify-quick
-verify-quick: ## Quick count-only verification (no hash comparison)
+verify-quick: ## Quick row counts and first-1000-row hash samples
 	uv run python data_sourcing/management/verify_etl_pipeline.py --quick
 
 .PHONY: verify-skip-etl

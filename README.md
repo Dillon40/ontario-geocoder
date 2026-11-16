@@ -250,9 +250,15 @@ addresses are shown.
 live Tier 2 matcher and checks accuracy against pinned thresholds. It compares this service's
 coordinates against Google's forward-geocoding API purely as an offline, external ground truth —
 this is unrelated to request-time geocoding, which never calls Google or any other external API.
-Every test in that module skips (rather than fails) when there's no database, no benchmark file,
-or no Google API key configured, so a plain `pytest` run stays green without any of that
-infrastructure.
+These integration tests are skipped by default. To opt in, supply the benchmark file,
+database credentials and Google configuration described in the module, then run:
+
+```bash
+uv run pytest tests/engine/test_accuracy_regression.py -m integration -v -s
+```
+
+They also skip when prerequisites are unavailable; check the skip summary rather than
+interpreting a run with no comparisons as evidence of accuracy.
 
 ## Testing
 
