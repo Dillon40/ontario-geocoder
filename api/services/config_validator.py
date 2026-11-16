@@ -268,6 +268,7 @@ async def bootstrap_initial_admin_key():
                 key_hash, key_prefix, name, owner, permissions
             )
             VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (key_hash) DO NOTHING
             ''',
             [key_hash, key_prefix, initial_key_name, initial_key_owner, json.dumps(permissions)]
         )

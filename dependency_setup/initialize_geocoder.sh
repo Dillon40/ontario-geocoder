@@ -74,16 +74,17 @@ echo -e "${GREEN}[2/5] Verifying database connection...${NC}"
 
 # Load environment variables if .env exists
 if [ -f "$PROJECT_ROOT/.env" ]; then
-    export $(grep -v '^#' "$PROJECT_ROOT/.env" | xargs 2>/dev/null) || true
+    set -a
+    source "$PROJECT_ROOT/.env"
+    set +a
 fi
 
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 DB_NAME="${DB_NAME:-geocoder}"
 DB_USER="${DB_USER:-geocoder}"
-# WARNING: geocoder123 below is a LOCAL DEVELOPMENT ONLY default.
-# Never use this password in a shared or production environment.
-DB_PASSWORD="${DB_PASSWORD:-geocoder123}"
+: "${DB_PASSWORD:?Set DB_PASSWORD in .env or the environment}"
+export DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD
 
 # Test database connection
 if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" > /dev/null 2>&1; then

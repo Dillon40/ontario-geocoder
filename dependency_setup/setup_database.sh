@@ -17,12 +17,13 @@ NC='\033[0m'
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 
-# Default configuration
-# WARNING: DB_PASSWORD below is a LOCAL DEVELOPMENT ONLY default.
-# Never use this password in a shared or production environment.
-DB_NAME="geocoder"
-DB_USER="geocoder"
-DB_PASSWORD="geocoder123"
+# Explicit credentials only; make setup exports .env values when present.
+DB_NAME="${DB_NAME:-geocoder}"
+DB_USER="${DB_USER:-geocoder}"
+: "${DB_PASSWORD:?Export a strong DB_PASSWORD before running setup}"
+[[ "$DB_NAME" =~ ^[a-z_][a-z0-9_]*$ && "$DB_USER" =~ ^[a-z_][a-z0-9_]*$ ]] || { echo 'Native setup requires lowercase PostgreSQL database/user identifiers'; exit 1; }
+DB_PASSWORD_SQL="${DB_PASSWORD//\'/\'\'}"
+export DB_NAME DB_USER DB_PASSWORD
 
 # Find psql binary (handles RHEL/AlmaLinux where it's in /usr/pgsql-XX/bin)
 find_psql() {
@@ -70,9 +71,9 @@ echo ""
 echo -e "${YELLOW}Default Configuration:${NC}"
 echo "  Database: $DB_NAME"
 echo "  User: $DB_USER"
-echo "  Password: $DB_PASSWORD"
+echo '  Password: (redacted)'
 echo ""
-echo -e "${RED}WARNING:${NC} LOCAL DEVELOPMENT ONLY - never use this default password in a shared or production environment."
+echo 'Credentials supplied by the operator; secrets are not displayed.'
 echo ""
 read -p "Continue with these settings? (y/N) " -n 1 -r
 echo ""
@@ -99,7 +100,7 @@ sudo -u postgres $PSQL_BIN -v ON_ERROR_STOP=1 <<-EOSQL
     DO \$\$
     BEGIN
         IF NOT EXISTS (SELECT FROM pg_user WHERE usename = '$DB_USER') THEN
-            CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
+            CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD_SQL';
         ELSE
             RAISE NOTICE 'User $DB_USER already exists';
         END IF;
@@ -159,10 +160,10 @@ echo "  Host: localhost"
 echo "  Port: 5432"
 echo "  Database: $DB_NAME"
 echo "  User: $DB_USER"
-echo "  Password: $DB_PASSWORD"
+echo '  Password: (redacted)'
 echo ""
 echo "Test connection:"
-echo "  PGPASSWORD=$DB_PASSWORD $PSQL_BIN -h localhost -U $DB_USER -d $DB_NAME"
+echo '  PGPASSWORD="$DB_PASSWORD" psql -h localhost -U "$DB_USER" -d "$DB_NAME"'
 echo ""
 echo -e "${BLUE}Next Step:${NC} Run ./configure_env.sh to create your .env file"
 echo ""

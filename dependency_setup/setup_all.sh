@@ -1,5 +1,7 @@
 #!/bin/bash
 set -e
+: "${DB_PASSWORD:?Export a strong DB_PASSWORD before native setup (openssl rand -hex 32)}"
+export DB_PASSWORD
 
 echo "=========================================="
 echo "Complete VM Setup - Geocoder Project"
@@ -58,7 +60,7 @@ echo "Next steps:"
 echo "  1. Source your shell config: source ~/.bashrc (or restart shell)"
 echo "  2. Review the .env file: nano .env"
 echo "  3. Run migrations: ./dependency_setup/initialize_geocoder.sh"
-echo "  4. Import data: uv run data_sourcing/setup_data.py --all-confirmed"
+echo "  4. Import data: uv run python data_sourcing/setup_data.py --all-confirmed"
 echo ""
 echo "For detailed documentation, see docs/VM_SETUP.md"
 echo ""

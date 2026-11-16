@@ -4,10 +4,10 @@ Bootstrap script to create the initial admin API key.
 Run this on fresh deployments to create the first admin user.
 
 Usage:
-    python scripts/create_admin_key.py --name "Admin Key" --owner "admin@example.com"
+    python api/create_admin_key.py --name "Admin Key" --owner "admin@example.com"
 
     # Or with environment variables:
-    DB_HOST=localhost python scripts/create_admin_key.py --name "Admin Key"
+    DB_HOST=localhost python api/create_admin_key.py --name "Admin Key"
 """
 import os
 import sys

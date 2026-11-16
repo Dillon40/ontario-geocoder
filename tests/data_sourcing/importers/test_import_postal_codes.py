@@ -18,12 +18,18 @@ class TestDatabaseUrl:
 
     def test_get_database_url_defaults(self):
         """Test default database URL construction."""
-        with patch.dict('os.environ', {}, clear=True):
-            from data_sourcing.importers.import_postal_codes import get_database_url
+        from data_sourcing.importers.import_postal_codes import get_database_url
+        with patch.dict('os.environ', {'DB_PASSWORD': 'test-only'}, clear=True):
             url = get_database_url()
             assert 'postgresql://' in url
             assert 'geocoder' in url
             assert 'localhost' in url
+
+    def test_missing_password_is_rejected(self):
+        from data_sourcing.importers.import_postal_codes import get_database_url
+        with patch.dict('os.environ', {}, clear=True):
+            with pytest.raises(RuntimeError, match='DB_PASSWORD is not set'):
+                get_database_url()
 
     def test_get_database_url_custom(self):
         """Test database URL with custom environment variables."""
