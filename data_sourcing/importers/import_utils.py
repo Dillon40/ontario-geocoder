@@ -115,10 +115,12 @@ class FileHashManager:
                 FROM import_history
                 WHERE source_key = $1
                   AND status = 'completed'
+                  AND rows_failed = 0
+                  AND file_path = $2
                   AND file_hash IS NOT NULL
                 ORDER BY completed_at DESC
                 LIMIT 1
-            """, source_key)
+            """, source_key, file_path)
 
         if last_import and last_import['file_hash'] == current_hash:
             completed = last_import['completed_at']

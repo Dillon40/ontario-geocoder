@@ -1879,5 +1879,18 @@ COMMIT;
 SELECT 'Migration 33: properties.civic_no_suffix widened to VARCHAR(50)' AS status;
 
 -- ============================================================================
+-- MIGRATION 34: Preserve upstream unit labels without truncation
+-- ============================================================================
+
+BEGIN;
+
+-- NAR has address-like unit labels longer than 20 characters. Preserve them
+-- verbatim instead of aborting a whole CSV part or silently truncating data.
+ALTER TABLE nar_addresses ALTER COLUMN apt_no_label TYPE TEXT;
+ALTER TABLE properties ALTER COLUMN unit_no TYPE TEXT;
+
+COMMIT;
+
+-- ============================================================================
 -- END OF MIGRATIONS
 -- ============================================================================

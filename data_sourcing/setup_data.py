@@ -39,7 +39,7 @@ load_dotenv()
 
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from data_sourcing.db_utils import get_db_connection, get_db_config, get_psql_env, get_psql_args
+from data_sourcing.db_utils import get_db_connection, get_db_config
 
 # Paths
 SCRIPT_DIR = Path(__file__).parent
@@ -174,10 +174,10 @@ class ImportResult:
             return f"{', '.join(parts)} ({self.duration_seconds}s)"
         elif self.rows_processed:
             return f"{self.rows_processed:,} processed ({self.duration_seconds}s)"
-        return "No rows processed"
+        return "Unchanged: no rows processed in this run"
 
 
-async def get_latest_import_stats(conn, source_key: str) -> Optional[dict]:
+async def get_latest_import_stats(conn, source_key: str, after_id: int = 0) -> Optional[dict]:
     """
     Query the most recent import stats for a source from import_history.
 
@@ -185,20 +185,16 @@ async def get_latest_import_stats(conn, source_key: str) -> Optional[dict]:
     """
     row = await conn.fetchrow("""
         SELECT
-            status,
-            rows_processed,
-            rows_inserted,
-            rows_updated,
-            rows_deleted,
-            rows_failed,
-            rows_skipped,
-            duration_seconds,
-            error_message
+            CASE WHEN bool_and(status = 'completed') THEN 'completed' ELSE 'failed' END AS status,
+            sum(rows_processed) AS rows_processed, sum(rows_inserted) AS rows_inserted,
+            sum(rows_updated) AS rows_updated, sum(rows_deleted) AS rows_deleted,
+            sum(rows_failed) AS rows_failed, sum(rows_skipped) AS rows_skipped,
+            sum(duration_seconds) AS duration_seconds,
+            string_agg(error_message, '; ') AS error_message
         FROM import_history
-        WHERE source_key = $1
-        ORDER BY started_at DESC
-        LIMIT 1
-    """, source_key)
+        WHERE source_key = $1 AND id > $2
+        HAVING count(*) > 0
+    """, source_key, after_id)
 
     if row:
         return dict(row)
@@ -213,21 +209,16 @@ async def check_data_sources_seeded(conn) -> bool:
 
 async def run_seed_script(conn):
     """Run the seed_data_sources.sql script."""
-    seed_file = SCRIPT_DIR / 'seed_data_sources.sql'
+    seed_file = PROJECT_ROOT / 'database' / 'seed_data_sources.sql'
     if not seed_file.exists():
         print(f"Error: Seed file not found: {seed_file}")
         return False
 
     print("Seeding data_sources table...")
-    result = subprocess.run(
-        ['psql'] + get_psql_args() + ['-f', str(seed_file)],
-        env=get_psql_env(),
-        capture_output=True,
-        text=True
-    )
-
-    if result.returncode != 0:
-        print(f"Error seeding data_sources: {result.stderr}")
+    try:
+        await conn.execute(seed_file.read_text())
+    except Exception as error:
+        print(f"Error seeding data_sources: {error}")
         return False
 
     print("✓ Data sources seeded successfully")
@@ -264,7 +255,7 @@ def run_download_script(source_key: str = None, all_confirmed: bool = False,
     return result.returncode == 0
 
 
-def run_import_script(source_info: dict) -> bool:
+def run_import_script(source_info: dict, force: bool = False) -> bool:
     """Run the appropriate import script for a source."""
     import_script = source_info.get('import_script')
     source_key = source_info['source_key']
@@ -323,6 +314,8 @@ def run_import_script(source_info: dict) -> bool:
                 '--province', '35',
                 '--batch-size', '5000'
             ]
+            if force:
+                cmd.append('--force')
             if loc_file:
                 cmd.extend(['--locations', str(loc_file)])
             # Stale detection is only valid when a single file covers the
@@ -338,6 +331,14 @@ def run_import_script(source_info: dict) -> bool:
             if result.returncode != 0:
                 success = False
 
+        if success:
+            # Address CSVs carry EPSG:3347 coordinates even when location files
+            # have no usable coordinates. Make Tier 3 usable on first setup.
+            for module in ('add_latlong_to_nar', 'add_fsa_to_nar'):
+                result = subprocess.run([sys.executable, '-m',
+                    f'data_sourcing.enrichment.{module}', '--db', config['database']], env=run_env)
+                if result.returncode:
+                    return False
         return success
 
     elif 'fsa_boundaries' in import_script.lower():
@@ -384,12 +385,14 @@ def run_import_script(source_info: dict) -> bool:
             '--source', source_name,
             '--batch-size', '1000'
         ]
+        if force:
+            cmd.append('--force')
         print(f"  Importing: {file_path.name}")
         result = subprocess.run(cmd, env=run_env)
         return result.returncode == 0
 
 
-async def run_import_with_tracking(conn, source_info: dict) -> ImportResult:
+async def run_import_with_tracking(conn, source_info: dict, force: bool = False) -> ImportResult:
     """
     Run import script and query import_history for detailed stats.
 
@@ -407,16 +410,16 @@ async def run_import_with_tracking(conn, source_info: dict) -> ImportResult:
     mapping_key = source_info.get('dataset_mapping_key') or source_key
 
     # Run the import
-    success = run_import_script(source_info)
+    before_id = await conn.fetchval('SELECT COALESCE(max(id), 0) FROM import_history')
+    success = run_import_script(source_info, force=force)
 
-    # Query import_history for detailed stats
-    # The import script should have recorded stats there
-    stats = await get_latest_import_stats(conn, mapping_key)
+    # Only this invocation's records; aggregate every NAR part, including failures.
+    stats = await get_latest_import_stats(conn, mapping_key, before_id)
 
     if stats:
         return ImportResult(
             source_key=source_key,
-            success=success and stats.get('status') == 'completed',
+            success=success and stats.get('status') == 'completed' and not stats.get('rows_failed'),
             rows_processed=stats.get('rows_processed') or 0,
             rows_inserted=stats.get('rows_inserted') or 0,
             rows_updated=stats.get('rows_updated') or 0,
@@ -424,7 +427,9 @@ async def run_import_with_tracking(conn, source_info: dict) -> ImportResult:
             rows_failed=stats.get('rows_failed') or 0,
             rows_skipped=stats.get('rows_skipped') or 0,
             duration_seconds=stats.get('duration_seconds') or 0,
-            error_message=stats.get('error_message')
+            error_message=stats.get('error_message') or (
+                f"{stats['rows_failed']} rows failed; see import_row_errors" if stats.get('rows_failed') else
+                None if success else 'Importer or enrichment subprocess failed; see output above')
         )
 
     # No stats found - return basic result
@@ -528,7 +533,7 @@ Examples:
   # Specific source
   DB_HOST=localhost %(prog)s --source guelph_addresses
 
-  # Skip NAR (requires manual download)
+  # Skip sources explicitly marked manual (NAR is automatic)
   DB_HOST=localhost %(prog)s --all-confirmed --skip-manual
 
   # Accept non-commercial sources without prompting
@@ -543,9 +548,9 @@ Examples:
     parser.add_argument('--import-only', '-i', action='store_true',
                         help='Only import (assumes data downloaded)')
     parser.add_argument('--force', '-f', action='store_true',
-                        help='Force re-download of existing files')
+                        help='Force re-download and re-import (with --import-only, only re-import)')
     parser.add_argument('--skip-manual', action='store_true',
-                        help='Skip sources requiring manual download (e.g., NAR)')
+                        help='Skip sources explicitly marked manual (not NAR)')
     parser.add_argument('--accept-non-commercial', action='store_true',
                         help='Accept sources without commercial use permission (no prompt)')
     parser.add_argument('--commercial-only', action='store_true',
@@ -683,7 +688,7 @@ Examples:
             # Import phase
             if not args.download_only:
                 print(f"\n[2/2] Importing {source_key}...")
-                result = await run_import_with_tracking(conn, source_info)
+                result = await run_import_with_tracking(conn, source_info, force=args.force)
                 import_results.append(result)
                 if result.success:
                     print(f"  ✓ {result.summary_line()}")
@@ -697,11 +702,10 @@ Examples:
                         print(f"  ✓ Validation: {msg}")
                     else:
                         print(f"  ⚠ Validation: {msg}")
-                        if not args.source and len(sources_to_process) > 1:
-                            response = input("  Continue with remaining sources? [y/n]: ").strip().lower()
-                            if response != 'y':
-                                print("  Aborting remaining imports.")
-                                break
+                        result.success = False
+                        result.error_message = msg
+                        # Continue independent sources, report all failures, and
+                        # exit nonzero. Never block unattended jobs on stdin.
 
         # Summary
         print(f"\n{'='*60}")
@@ -764,6 +768,8 @@ Examples:
                     print(f"    - {item}")
 
         print(f"\n{'='*60}")
+        if download_failed or any(not r.success for r in import_results):
+            sys.exit(1)
 
     finally:
         await conn.close()

@@ -793,7 +793,7 @@ PROPERTIES_VARCHAR_LIMITS = {
     'street_name': 100,
     'street_suffix': 20,
     'street_direction': 20,  # widened from 10 by migration 25
-    'unit_no': 20,
+    # unit_no is TEXT: retain upstream labels verbatim.
     'civic_no_suffix': 50,
     'city': 100,
     'city_original': 100,
@@ -1238,6 +1238,17 @@ async def import_geojson(file_path: str, source_name: str, batch_size: int,
                     source_name, record, row_number
                 )
 
+                # Some published point layers include empty/non-address features.
+                # Exclude ONLY absent civic/full-address identities, audit them,
+                # and distinguish this documented policy from processing errors.
+                if not any(record.get(k) is not None and str(record[k]).strip()
+                           for k in ('street_number', 'full_address')):
+                    await tracker.log_row_error(row_number, 'not_address_record',
+                        'Excluded source point without civic number or full address',
+                        record, count_failure=False)
+                    tracker.stats.rows_processed += 1
+                    continue
+
                 # Apply transform pipeline (includes validation)
                 context = await pipeline.transform_async(record, row_number=row_number)
 
@@ -1300,6 +1311,12 @@ async def import_geojson(file_path: str, source_name: str, batch_size: int,
             print(f'Transform errors: {transform_errors}')
             print(f'Failed: {tracker.stats.rows_failed}')
             print(f'Postal prefixes found: {", ".join(sorted(postal_prefix_set))}')
+
+            # Never retire old records or report success after processing errors.
+            if tracker.stats.rows_failed:
+                raise RuntimeError(f'{tracker.stats.rows_failed} rows failed; see import_row_errors')
+            if total_features and not (tracker.stats.rows_inserted + tracker.stats.rows_updated):
+                raise RuntimeError('Source contained no importable address records')
 
             # Handle stale records
             if stale_detector:

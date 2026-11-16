@@ -181,7 +181,8 @@ class ImportTracker:
         row_number: int,
         error_type: str,
         error_message: str,
-        row_data: Optional[dict] = None
+        row_data: Optional[dict] = None,
+        *, count_failure: bool = True
     ) -> None:
         """
         Log a row-level error (batched for performance).
@@ -191,6 +192,8 @@ class ImportTracker:
             error_type: category of error (e.g., 'validation_error', 'parse_error')
             error_message: description of the error
             row_data: original row data for debugging (optional)
+            count_failure: False only for explicitly excluded non-address source features;
+                           these remain audited and increment rows_skipped instead.
         """
         self._error_batch.append({
             'import_id': self.import_id,
@@ -199,7 +202,10 @@ class ImportTracker:
             'error_message': error_message,
             'row_data': json.dumps(row_data, cls=DecimalEncoder) if row_data else None
         })
-        self.stats.rows_failed += 1
+        if count_failure:
+            self.stats.rows_failed += 1
+        else:
+            self.stats.rows_skipped += 1
 
         if len(self._error_batch) >= self._error_batch_size:
             await self._flush_error_batch()

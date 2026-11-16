@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS properties (
     street_name VARCHAR(100),
     street_suffix VARCHAR(20),
     street_direction VARCHAR(20),
-    unit_no VARCHAR(20),
+    unit_no TEXT,
     civic_no_suffix VARCHAR(50), -- widened from VARCHAR(10) on live DB; not tracked by a numbered migration
     city VARCHAR(100),
     city_original VARCHAR(100),
@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS nar_addresses (
     addr_guid UUID UNIQUE,
     civic_no VARCHAR(20),
     civic_no_suffix VARCHAR(10),
-    apt_no_label VARCHAR(20),
+    apt_no_label TEXT,
     official_street_name VARCHAR(100),
     official_street_type VARCHAR(20),
     official_street_dir VARCHAR(20), -- widened from VARCHAR(10) by migration 26

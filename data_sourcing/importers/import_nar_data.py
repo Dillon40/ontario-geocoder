@@ -122,7 +122,7 @@ async def insert_location_batch(batch: list, pool: asyncpg.Pool,
 
 
 async def insert_address_batch(batch: list, pool: asyncpg.Pool,
-                               import_id: int = None) -> int:
+                               import_id: int = None) -> tuple[int, int]:
     """Insert/update address batch with UPSERT.
 
     Args:
@@ -131,14 +131,15 @@ async def insert_address_batch(batch: list, pool: asyncpg.Pool,
         import_id: Current import ID for tracking
 
     Returns:
-        Number of records inserted/updated
+        Tuple of actual (inserted, updated) counts, including conflict updates.
     """
     if not batch:
-        return 0
+        return 0, 0
 
     async with pool.acquire() as conn:
         async with conn.transaction():
             inserted_count = 0
+            updated_count = 0
 
             for address in batch:
                 query = '''
@@ -159,6 +160,15 @@ async def insert_address_batch(batch: list, pool: asyncpg.Pool,
                         csd_eng_name = EXCLUDED.csd_eng_name,
                         prov_code = EXCLUDED.prov_code,
                         mail_postal_code = EXCLUDED.mail_postal_code,
+                        -- Recompute derived coordinates only when a new projected
+                        -- pair actually changes. Missing coordinates never erase
+                        -- existing geocodes; setup's backfill handles invalidation.
+                        latitude = CASE WHEN EXCLUDED.bg_x IS NOT NULL AND EXCLUDED.bg_y IS NOT NULL
+                            AND (EXCLUDED.bg_x, EXCLUDED.bg_y) IS DISTINCT FROM (nar_addresses.bg_x, nar_addresses.bg_y)
+                            THEN NULL ELSE nar_addresses.latitude END,
+                        longitude = CASE WHEN EXCLUDED.bg_x IS NOT NULL AND EXCLUDED.bg_y IS NOT NULL
+                            AND (EXCLUDED.bg_x, EXCLUDED.bg_y) IS DISTINCT FROM (nar_addresses.bg_x, nar_addresses.bg_y)
+                            THEN NULL ELSE nar_addresses.longitude END,
                         -- Coordinate-overwrite protection: a re-import from
                         -- a file without coordinates (e.g. no Location file)
                         -- must never wipe existing good coordinates. Updated
@@ -178,8 +188,8 @@ async def insert_address_batch(batch: list, pool: asyncpg.Pool,
                         deleted_at = NULL
                 '''
 
-                await conn.execute(
-                    query,
+                created = await conn.fetchval(
+                    query + ' RETURNING (xmax = 0)',
                     address['loc_guid'],
                     address['addr_guid'],
                     address['civic_no'],
@@ -196,9 +206,10 @@ async def insert_address_batch(batch: list, pool: asyncpg.Pool,
                     import_id
                 )
 
-                inserted_count += 1
+                inserted_count += int(created)
+                updated_count += int(not created)
 
-            return inserted_count
+            return inserted_count, updated_count
 
 
 async def import_addresses(file_path: str, location_map: Dict[str, dict],
@@ -226,6 +237,7 @@ async def import_addresses(file_path: str, location_map: Dict[str, dict],
     batch = []
     batch_addr_guids = []  # Track addr_guids for stale detection
     inserted_count = 0
+    updated_count = 0
     skipped_count = 0
     with_coords_count = 0
     import_id = tracker.import_id if tracker else None
@@ -279,10 +291,12 @@ async def import_addresses(file_path: str, location_map: Dict[str, dict],
 
                 # Insert batch when it reaches batch size
                 if len(batch) >= batch_size:
-                    inserted = await insert_address_batch(batch, pool, import_id)
+                    inserted, updated = await insert_address_batch(batch, pool, import_id)
                     inserted_count += inserted
+                    updated_count += updated
                     if tracker:
                         tracker.stats.rows_inserted += inserted
+                        tracker.stats.rows_updated += updated
                         tracker.stats.rows_processed += len(batch)
 
                     # Mark addr_guids as seen for stale detection
@@ -304,24 +318,27 @@ async def import_addresses(file_path: str, location_map: Dict[str, dict],
 
         # Insert remaining records
         if batch:
-            inserted = await insert_address_batch(batch, pool, import_id)
+            inserted, updated = await insert_address_batch(batch, pool, import_id)
             inserted_count += inserted
+            updated_count += updated
             # Mark remaining addr_guids as seen
             if stale_detector:
                 for guid in batch_addr_guids:
                     stale_detector.mark_seen(guid)
             if tracker:
                 tracker.stats.rows_inserted += inserted
+                tracker.stats.rows_updated += updated
                 tracker.stats.rows_processed += len(batch)
 
     print(f'\n\nAddress import complete!')
     print(f'Total processed: {line_count}')
-    print(f'Successfully inserted: {inserted_count}')
+    print(f'Successfully inserted: {inserted_count}; updated: {updated_count}')
     print(f'Addresses with coordinates: {with_coords_count}')
     print(f'Skipped: {skipped_count}')
 
     return {
         'inserted_count': inserted_count,
+        'updated_count': updated_count,
         'with_coords_count': with_coords_count
     }
 
@@ -422,6 +439,9 @@ async def main():
                     addr_stale_detector
                 )
 
+                if tracker.stats.rows_failed:
+                    raise RuntimeError(f'{tracker.stats.rows_failed} rows failed; see import_row_errors')
+
                 # Step 4: Handle stale records
                 if addr_stale_detector:
                     print(f'\nDetecting stale records...')
@@ -454,11 +474,12 @@ async def main():
                 print('NAR Import Summary')
                 print('=' * 60)
                 print(f'Locations imported: {inserted_locations}')
-                print(f'Addresses imported: {address_stats["inserted_count"]}')
-                print(f'Addresses with coordinates: {address_stats["with_coords_count"]}')
-                if address_stats['inserted_count'] > 0:
-                    coverage = round((address_stats['with_coords_count'] / address_stats['inserted_count']) * 100)
-                    print(f'Coordinate coverage: {coverage}%')
+                total_upserted = address_stats['inserted_count'] + address_stats['updated_count']
+                print(f'Addresses upserted: {total_upserted} (inserted {address_stats["inserted_count"]}, updated {address_stats["updated_count"]})')
+                print(f'Addresses with location-file coordinates: {address_stats["with_coords_count"]}')
+                if total_upserted > 0:
+                    coverage = round((address_stats['with_coords_count'] / total_upserted) * 100)
+                    print(f'Location-file coordinate coverage: {coverage}% (projected-address backfill runs in setup)')
                 if tracker.stats.rows_deleted > 0:
                     print(f'Stale records deleted: {tracker.stats.rows_deleted}')
                 print(f'Import tracked with ID: {tracker.import_id}')
