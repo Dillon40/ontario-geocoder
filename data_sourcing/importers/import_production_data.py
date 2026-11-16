@@ -27,11 +27,10 @@ import geopandas as gpd
 import ijson
 from pyproj import Transformer, CRS
 
-from import_tracker import ImportTracker
-from import_utils import FileHashManager, StaleRecordDetector, PropertyIdGenerator
-
-# Add project root to path for transformer imports
+# Support both the orchestrator's direct-script call and documented python -m.
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from data_sourcing.importers.import_tracker import ImportTracker
+from data_sourcing.importers.import_utils import FileHashManager, StaleRecordDetector, PropertyIdGenerator
 from data_sourcing.transformers import TransformPipeline
 from data_sourcing.db_utils import get_db_connection, get_db_pool
 

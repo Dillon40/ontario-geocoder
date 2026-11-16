@@ -20,11 +20,10 @@ from typing import Dict
 from dotenv import load_dotenv
 import asyncpg
 
-from import_tracker import ImportTracker
-from import_utils import FileHashManager, StaleRecordDetector
-
-# Add project root to path for db_utils import
+# Support both direct-script and package execution with the locked interpreter.
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from data_sourcing.importers.import_tracker import ImportTracker
+from data_sourcing.importers.import_utils import FileHashManager, StaleRecordDetector
 from data_sourcing.db_utils import get_db_pool
 
 # Load environment variables

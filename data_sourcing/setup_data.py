@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#   "asyncpg",
-#   "python-dotenv",
-#   "httpx",
-# ]
-# ///
+# Run in the project's locked environment (uv run python ...), not an isolated
+# inline-script environment: child importers share this interpreter.
 
 """
 Data Setup Orchestrator
@@ -252,7 +246,7 @@ async def get_source_info(conn, source_key: str) -> dict:
 def run_download_script(source_key: str = None, all_confirmed: bool = False,
                         force: bool = False, skip_manual: bool = False) -> bool:
     """Run the download_data_sources.py script."""
-    cmd = ['uv', 'run', str(DOWNLOADERS_DIR / 'download_data_sources.py')]
+    cmd = [sys.executable, str(DOWNLOADERS_DIR / 'download_data_sources.py')]
 
     if source_key:
         cmd.extend(['--source', source_key])
@@ -324,7 +318,7 @@ def run_import_script(source_info: dict) -> bool:
 
         for i, (addr_file, loc_file) in enumerate(file_pairs):
             cmd = [
-                'uv', 'run', str(script_path),
+                sys.executable, str(script_path),
                 '--addresses', str(addr_file),
                 '--province', '35',
                 '--batch-size', '5000'
@@ -354,7 +348,7 @@ def run_import_script(source_info: dict) -> bool:
             print(f"  No shapefile found in {data_dir}")
             return False
 
-        cmd = ['uv', 'run', str(script_path), '--shapefile', str(shp_files[0])]
+        cmd = [sys.executable, str(script_path), '--shapefile', str(shp_files[0])]
         print(f"  Importing: {shp_files[0].name}")
         result = subprocess.run(cmd, env=run_env)
         return result.returncode == 0
@@ -367,7 +361,7 @@ def run_import_script(source_info: dict) -> bool:
             print(f"  No shapefile found in {data_dir}")
             return False
 
-        cmd = ['uv', 'run', str(script_path), '--shapefile', str(shp_files[0])]
+        cmd = [sys.executable, str(script_path), '--shapefile', str(shp_files[0])]
         print(f"  Importing: {shp_files[0].name}")
         result = subprocess.run(cmd, env=run_env)
         return result.returncode == 0
@@ -385,7 +379,7 @@ def run_import_script(source_info: dict) -> bool:
 
         source_name = dataset_mapping_key or source_key
         cmd = [
-            'uv', 'run', str(script_path),
+            sys.executable, str(script_path),
             '--file', str(file_path),
             '--source', source_name,
             '--batch-size', '1000'

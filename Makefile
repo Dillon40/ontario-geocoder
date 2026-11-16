@@ -84,32 +84,32 @@ db-shell: ## Open psql shell
 
 .PHONY: import-all
 import-all: ## Download + import all confirmed sources (interactive consent)
-	uv run data_sourcing/setup_data.py --all-confirmed
+	uv run python data_sourcing/setup_data.py --all-confirmed
 
 .PHONY: import-all-auto
 import-all-auto: ## Download + import all sources (auto-accept non-commercial)
-	uv run data_sourcing/setup_data.py --all-confirmed --accept-non-commercial
+	uv run python data_sourcing/setup_data.py --all-confirmed --accept-non-commercial
 
 .PHONY: import-only
 import-only: ## Import from already-downloaded files (no download step)
-	uv run data_sourcing/setup_data.py --all-confirmed --import-only --accept-non-commercial
+	uv run python data_sourcing/setup_data.py --all-confirmed --import-only --accept-non-commercial
 
 .PHONY: import-commercial
 import-commercial: ## Import only commercially-licensed sources
-	uv run data_sourcing/setup_data.py --all-confirmed --commercial-only
+	uv run python data_sourcing/setup_data.py --all-confirmed --commercial-only
 
 .PHONY: import-source
 import-source: ## Import a single source (usage: make import-source SRC=guelph_addresses)
 	@if [ -z "$(SRC)" ]; then echo "Usage: make import-source SRC=<source_key>"; exit 1; fi
-	uv run data_sourcing/setup_data.py --source $(SRC) --accept-non-commercial
+	uv run python data_sourcing/setup_data.py --source $(SRC) --accept-non-commercial
 
 .PHONY: import-nar
 import-nar: ## Import NAR Ontario (files must be in data_sourcing/data_sources/nar_ontario/)
-	uv run data_sourcing/setup_data.py --source nar_ontario --import-only --accept-non-commercial
+	uv run python data_sourcing/setup_data.py --source nar_ontario --import-only --accept-non-commercial
 
 .PHONY: list-sources
 list-sources: ## List all confirmed data sources and their status
-	uv run data_sourcing/setup_data.py --list
+	uv run python data_sourcing/setup_data.py --list
 
 # ---------------------------------------------------------------------------
 # Run targets
@@ -144,9 +144,11 @@ docker-logs: ## Tail Docker Compose logs
 	docker compose -f docker-compose.prod.yml logs -f
 
 .PHONY: docker-etl
-docker-etl: ## Run ETL import inside Docker
+ETL_ARGS ?= --all-confirmed --accept-non-commercial
+
+docker-etl: ## Run ETL inside Docker (override ETL_ARGS for a source, --list or --help)
 	docker compose -f docker-compose.prod.yml run --rm etl \
-		python -m data_sourcing.setup_data --all-confirmed --accept-non-commercial
+		data_sourcing.setup_data $(ETL_ARGS)
 
 # ---------------------------------------------------------------------------
 # Test & verify targets
@@ -166,15 +168,15 @@ test-transformers: ## Run transformer tests
 
 .PHONY: verify
 verify: ## Run ETL verification (compare verify DB vs prod)
-	uv run scripts/verify_etl_pipeline.py --diff --report etl_verification_report.txt
+	uv run python scripts/verify_etl_pipeline.py --diff --report etl_verification_report.txt
 
 .PHONY: verify-quick
 verify-quick: ## Quick count-only verification (no hash comparison)
-	uv run scripts/verify_etl_pipeline.py --quick
+	uv run python scripts/verify_etl_pipeline.py --quick
 
 .PHONY: verify-skip-etl
 verify-skip-etl: ## Re-compare existing verify DB without re-running ETL
-	uv run scripts/verify_etl_pipeline.py --skip-etl --diff --report etl_verification_report.txt
+	uv run python scripts/verify_etl_pipeline.py --skip-etl --diff --report etl_verification_report.txt
 
 # ---------------------------------------------------------------------------
 # Utilities

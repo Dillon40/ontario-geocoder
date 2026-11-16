@@ -34,3 +34,11 @@ def test_native_env_keeps_credentials_private_and_existing_file(tmp_path):
     assert (tmp_path/'.env').stat().st_mode & 0o777 == 0o600
     subprocess.run(['bash',str(script)],env=env,check=True,capture_output=True)
     assert (tmp_path/'.env').read_text()==output
+
+
+def test_make_etl_command_has_only_module_entrypoint(tmp_path):
+    import shutil,subprocess
+    shutil.copy(ROOT/'Makefile',tmp_path/'Makefile')
+    run=subprocess.run(['make','-n','docker-etl','ETL_ARGS=--help'],cwd=tmp_path,capture_output=True,text=True,check=True)
+    assert 'data_sourcing.setup_data --help' in run.stdout
+    assert 'python -m data_sourcing.setup_data' not in run.stdout

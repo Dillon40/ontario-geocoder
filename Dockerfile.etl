@@ -31,14 +31,13 @@ RUN pip install uv
 
 WORKDIR /app
 
-# Copy dependency files and source (needed for hatchling build)
+# Cache locked dependencies independently from source changes. Scripts run with
+# this interpreter directly; inline script metadata never resolves at runtime.
 COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-cache --no-install-project
 COPY data_sourcing/ ./data_sourcing/
 COPY config/ ./config/
-
-# Create virtual environment (at UV_PROJECT_ENVIRONMENT) and install
-# dependencies exactly as pinned in uv.lock (fails if the lock is stale)
-RUN uv sync --frozen --no-dev --no-cache
+COPY database/ ./database/
 
 ENV PATH="/opt/venv/bin:$PATH"
 

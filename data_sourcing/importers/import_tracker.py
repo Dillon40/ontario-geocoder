@@ -36,7 +36,7 @@ import asyncpg
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from data_sourcing.db_utils import get_db_pool
-from import_utils import FileHashManager
+from data_sourcing.importers.import_utils import FileHashManager
 
 
 @dataclass

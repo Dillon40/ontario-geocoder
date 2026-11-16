@@ -29,7 +29,10 @@ from datetime import datetime
 from dotenv import load_dotenv
 import httpx
 
-from download_utils import calculate_file_hash
+try:
+    from .download_utils import calculate_file_hash
+except ImportError:
+    from download_utils import calculate_file_hash
 
 # Load environment variables
 load_dotenv()
