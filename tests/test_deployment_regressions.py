@@ -23,15 +23,16 @@ def test_free_text_full_suffix_and_direction(direction):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('table,column', [('properties','street_direction'), ('nar_addresses a','a.official_street_dir')])
-async def test_direction_constraints_before_limit(table,column):
+async def test_direction_and_deleted_constraints_before_limit(table,column):
     from engine.layered_matcher import query_candidates
     with patch('engine.layered_matcher.database.query', AsyncMock(return_value=[])) as query:
         await query_candidates(f'SELECT * FROM {table} WHERE TRUE ORDER BY id LIMIT 10', [], {'street_direction':'West'})
         sql, params = query.call_args.args
+        assert 'is_deleted' in sql
         assert column in sql
         assert 'ANY($1::text[])' in sql
         assert set(params[0]) >= {'WEST','W'}
-        assert sql.index(column) < sql.index('LIMIT')
+        assert sql.index('is_deleted') < sql.index('LIMIT')
 
 @pytest.mark.asyncio
 async def test_migrations_verify_null_unknown_and_changed_checksums():

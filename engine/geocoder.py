@@ -48,7 +48,7 @@ async def lookup_by_pin(address_components: Dict[str, Any]) -> Optional[Dict[str
         pin = int(address_components['pin'])
 
         result = await database.query(
-            'SELECT * FROM properties WHERE pin = $1 ORDER BY id LIMIT 1',
+            'SELECT * FROM properties WHERE pin = $1 AND NOT is_deleted ORDER BY id LIMIT 1',
             [pin]
         )
 
@@ -198,8 +198,8 @@ async def geocode(address_input: Any) -> Dict[str, Any]:
         address_hash = generate_address_hash(address_components)
 
         # Check cache
-        # Ignore cached results produced before strict direction filtering.
-        cache_key = f'geocode:v1:{address_hash}'
+        # Ignore cached matches to retired properties.
+        cache_key = f'geocode:v2:{address_hash}'
         cached = await cache.get(cache_key)
 
         if cached:

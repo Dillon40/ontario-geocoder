@@ -153,7 +153,7 @@ async def get_stats() -> Dict[str, Any]:
     """
     try:
         # Get properties count
-        properties_result = await query('SELECT COUNT(*) as count FROM properties')
+        properties_result = await query('SELECT COUNT(*) as count FROM properties WHERE NOT is_deleted')
         properties_count = properties_result[0]['count']
 
         # Get cache count
@@ -164,7 +164,7 @@ async def get_stats() -> Dict[str, Any]:
         dataset_result = await query('''
             SELECT source_dataset, COUNT(*) as count
             FROM properties
-            WHERE source_dataset IS NOT NULL
+            WHERE source_dataset IS NOT NULL AND NOT is_deleted
             GROUP BY source_dataset
         ''')
 
@@ -175,7 +175,7 @@ async def get_stats() -> Dict[str, Any]:
         nar_location_count = 0
 
         try:
-            nar_addr = await query('SELECT COUNT(*) as count FROM nar_addresses')
+            nar_addr = await query('SELECT COUNT(*) as count FROM nar_addresses WHERE NOT is_deleted')
             nar_address_count = nar_addr[0]['count']
         except Exception:
             # NAR tables don't exist yet

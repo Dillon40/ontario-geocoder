@@ -33,10 +33,11 @@ async def query_candidates(query, params, components):
 
     Postal/city constraints may be relaxed, but an explicitly opposite street
     direction must never win just because it is the only remaining candidate.
+    Soft-deleted rows are never candidates (including civic-suffix fallbacks).
     """
     nar = 'FROM nar_addresses' in query
     prefix = 'a.' if nar else ''
-    conditions = ['TRUE']
+    conditions = [f'NOT {prefix}is_deleted']
     params = list(params)
     direction = components.get('street_direction_normalized') or components.get('street_direction')
     if direction:
