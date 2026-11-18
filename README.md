@@ -129,7 +129,8 @@ curl http://localhost:3000/v1/health
 Compose starts the API and runs tracked database initialization automatically. Do **not** run
 host `make import-all` or `make dev` against this stack: PostgreSQL has no host port and the API
 is already running. See [the deployment runbook](docs/DEPLOYMENT.md) for authentication,
-per-source imports, verification and recovery. Health means DB/Redis connectivity, not complete data coverage.
+per-source imports, verification and recovery. Health means DB/Redis connectivity, not complete data coverage. Fresh initialization seeds
+confirmed sources; metadata alone does not prove successful imports.
 Middlesex municipal data is excluded because permissive reuse rights could not be verified;
 Middlesex requests use the NAR fallback, with its documented coordinate-coverage limitations.
 

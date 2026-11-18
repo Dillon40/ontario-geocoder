@@ -1,0 +1,151 @@
+{
+  "source": "PAGEEDITOR",
+  "folderId": null,
+  "values": {
+    "sites": [
+      {
+        "id": "28a2a847e147447f8eb6ddc6025d561b",
+        "title": "Sarnia Open Data Portal"
+      }
+    ],
+    "layout": {
+      "sections": [
+        {
+          "containment": "fixed",
+          "isFooter": false,
+          "style": {
+            "background": {
+              "isFile": false,
+              "isUrl": true,
+              "state": "",
+              "display": {},
+              "transparency": 0,
+              "position": {
+                "x": "center",
+                "y": "center"
+              },
+              "color": "transparent"
+            },
+            "color": "#4c4c4c",
+            "rowLayout": "box"
+          },
+          "rows": [
+            {
+              "cards": [
+                {
+                  "component": {
+                    "name": "markdown-card",
+                    "settings": {
+                      "cardId": "c0xanylac",
+                      "schemaVersion": 2.1,
+                      "markdown": "<p><h1 style=\"color: rgb(76, 76, 76); font-size: var(--font-size-h1);\">City of Sarnia Open Data - Terms of Use</h1> \n<br>\n<br>\n<h2 style=\"color: rgb(76, 76, 76); font-size: var(--font-size-h2);\">Preamble</h2>\n<p style=\"font-size: 14 px\">This Open Government Licence is based on version 2.0 of the Open Government Licence - Canada, which was developed through public consultation and collaborative efforts by provincial and federal governments. The only substantive changes to the licence are references to the province of jurisdiction and the name of the public body.</p>\n<br>\n<h2 style=\"font-size: var(--font-size-h2);\">Open Government Licence \u2013 City of Sarnia</h2>\n<p>You are encouraged to use the Information that is available under this licence with only a few conditions.</p>\n<br>\n<h2 style=\"color: rgb(76, 76, 76); font-size: var(--font-size-h2);\">Using Information under this licence</h2>\n<p>Use of any Information indicates your acceptance of the terms below.</p>\n\n<p>The Information Provider grants you a worldwide, royalty-free, perpetual, non-exclusive licence to use the Information, including for commercial purposes, subject to the terms below.</p>\n<br>\n<p>You are free to:</p>\n<p>Copy, modify, publish, translate, adapt, distribute or otherwise use the Information in any medium, mode or format for any lawful purpose.</p>\n<p>You must, where you do any of the above:</p>\n<br>\n<ul><li>Acknowledge the source of the Information by including any attribution statement specified by the Information Provider and, where possible, provide a link to this licence.</li>\n  <br>\n<li><span style=\"background-color: initial; color: currentcolor;\">If the Information Provider does not provide a specific attribution statement, or if you are using Information from several information providers and multiple attributions are not practical for your product or application, you must use the following attribution statement:&nbsp;</span>\n</li></ul>\n<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<b>\"Contains information licensed under the Open Government Licence \u2013 City of Sarnia\"&nbsp;</b></p>\n<br>\n<ul><li><span style=\"background-color: initial; color: currentcolor;\">The terms of this licence are important, and if you fail to comply with any of them, the rights granted to you under this licence, or any similar licence granted by the Information Provider, will end automatically.</span></li></ul>\n<br>\n<h2 style=\"color: rgb(76, 76, 76); font-size: var(--font-size-h2);\">Exemptions</h2>\n<p>This licence does not grant you any right to use or access:</p>\n<div>a) Personal Information;</div>\n<div>b) Information not available under the Municipal Freedom of Information and Protection of Privacy Act, R.S.O. 1990, c. M. 56</div>\n<div>c) third party rights the Information Provider is not authorized to licence;</div>\n<div>d) the names, crests, logos, or other official marks of the Information Provider; and</div>\n<div>e) Information subject to other intellectual property rights, including patents, trade-marks and official marks.</div>\n<div><br></div>\n<h2 style=\"color: rgb(76, 76, 76); font-size: var(--font-size-h2);\">Non-endorsement</h2>\n<p><span style=\"font-size: 16px;\">This licence does not grant you any right to use the Information in a way that suggests any official status or that the Information Provider endorses you or your use of the Information.</span></p>\n<br>\n<h2 style=\"color: rgb(76, 76, 76); font-size: var(--font-size-h2);\">No warranty</h2>\n<p>The Information is licensed \"as is\", and the Information Provider excludes all representations, warranties, obligations, and liabilities, whether express or implied, to the maximum extent permitted by law.</p>\n<p>The Information Provider is not liable for any errors or omissions in the Information, and will not under any circumstances be liable for any direct, indirect, special, incidental, consequential, or other loss, injury or damage caused by its use or otherwise arising in connection with this licence or the Information, even if specifically advised of the possibility of such loss, injury or damage. Your copying, modification, publication, translation, adaptation, distribution and any other use of the Information shall be at your sole and exclusive rights.</p>\n<br>\n<h2 style=\"color: rgb(76, 76, 76); font-size: var(--font-size-h2);\">Governing Law</h2>\n<div>This licence is governed by the laws of Ontario and the applicable laws of Canada.</div><div>Legal proceedings related to this licence may only be brought in the courts of Ontario.</div>\n<br>\n<h2 style=\"color: rgb(76, 76, 76); font-size: var(--font-size-h2);\">Definitions</h2>\n<p>In this licence, the terms below have the following meanings:</p>\n<p><span style=\"font-weight: 600;\">\"Information\"</span>&nbsp;means information resources or records protected by copyright or other information or records that are offered for use under the terms of this licence.</p>\n<p><span style=\"font-weight: 600;\">\"Information Provider\"</span>&nbsp;means The Corporation of the City of Sarnia.</p>\n<p><span style=\"font-weight: 600;\">\"Personal Information\"</span>&nbsp;has the meaning set out in 2(1) of the Municipal Freedom of Information and Protection of Privacy Act, R.S.O. 1990, c. M. 56.</p>\n<p><span style=\"font-weight: 600;\">\"You\"&nbsp;</span>means the natural or legal person, or body of persons corporate or incorporate, acquiring rights under this licence.</p>"
+                    }
+                  },
+                  "width": 12
+                }
+              ]
+            },
+            {
+              "cards": [
+                {
+                  "component": {
+                    "name": "spacer-card",
+                    "settings": {
+                      "height": "25",
+                      "cardId": "cj8zw6z1m"
+                    }
+                  },
+                  "settings": {
+                    "height": 100
+                  },
+                  "width": 12
+                }
+              ]
+            }
+          ],
+          "visibility": {
+            "access": "default",
+            "groups": []
+          }
+        },
+        {
+          "containment": "fixed",
+          "isFooter": false,
+          "style": {
+            "background": {
+              "isFile": false,
+              "isUrl": true,
+              "state": "",
+              "display": {},
+              "transparency": 0,
+              "position": {
+                "x": "center",
+                "y": "center"
+              },
+              "color": "#ebebeb"
+            },
+            "color": "#4c4c4c",
+            "rowLayout": "box"
+          },
+          "rows": [
+            {
+              "cards": [
+                {
+                  "component": {
+                    "name": "spacer-card",
+                    "settings": {
+                      "height": "10",
+                      "cardId": "cxa10z8bq"
+                    }
+                  },
+                  "settings": {
+                    "height": 100
+                  },
+                  "width": 12
+                }
+              ]
+            },
+            {
+              "cards": [
+                {
+                  "component": {
+                    "name": "markdown-card",
+                    "settings": {
+                      "cardId": "cuhzur5g4",
+                      "schemaVersion": 2.1,
+                      "markdown": "\n<h2 class=\"text-center\" style=\"font-family: &quot;Avenir Next&quot;, &quot;Avenir Next&quot;; color: rgb(117, 117, 117); font-size: 24px;\">Can't find what you're looking for? Please contact us</h2>\n\n<p class=\"text-center\" style=\"font-family: &quot;Avenir Next&quot;, &quot;Avenir Next&quot;; color: rgb(117, 117, 117); font-size: 24px;\"><span class=\"glyphicon glyphicon-envelope\" style=\"margin-right: 10px;\"></span><span style=\"color: inherit; font-family: var(--fontsHeadingFamily),Avenir Next; font-size: 24px; background-color: initial;\"><a href=\"mailto:geospatial.solutions@sarnia.ca\">geospatial.solutions@sarnia.ca</a></span></p>"
+                    }
+                  },
+                  "width": 12
+                }
+              ]
+            },
+            {
+              "cards": [
+                {
+                  "component": {
+                    "name": "spacer-card",
+                    "settings": {
+                      "height": "10",
+                      "cardId": "cluuku7hm"
+                    }
+                  },
+                  "settings": {
+                    "height": 100
+                  },
+                  "width": 12
+                }
+              ]
+            }
+          ],
+          "visibility": {
+            "access": "default",
+            "groups": []
+          }
+        }
+      ]
+    },
+    "updatedAt": "2024-08-09T14:52:26.362Z",
+    "updatedBy": "nicole.ferguson"
+  }
+}

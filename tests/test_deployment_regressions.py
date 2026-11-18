@@ -200,7 +200,7 @@ def test_fresh_seed_contains_repaired_endpoints():
     assert 'Digital_boundary_files/MapServer/14' in sql
     assert 'data_sourcing/data_sources/fsa_boundaries/fsa_boundaries.geojson' in sql
     assert 'commercial permission unverified' in sql
-    assert 'commercial_use_allowed = NULL' in sql
+    assert "'https://www.arcgis.com/home/item.html?id=928ed74edad64e4aa65170fb49c46476',\n    NULL," in sql
     assert "'Middlesex County - Municipal Address Points',\n    'blocked'" in sql
     assert "status = 'blocked'" in sql
 
@@ -253,7 +253,7 @@ async def test_old_municipal_response_cache_namespace_is_not_read():
     from engine import geocoder
     with patch.object(geocoder.cache,'get',AsyncMock(return_value={'success':True,'source':'nar_match'})) as cache_get:
         await geocoder.geocode({'street_number':'21605','street_name':'Adelaide','city':'Middlesex Centre'})
-    assert cache_get.call_args.args[0].startswith('geocode:v5:')
+    assert cache_get.call_args.args[0].startswith('geocode:v6:')
 
 
 def test_exclusion_migration_preserves_nar_and_audit_rows():

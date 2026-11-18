@@ -2,7 +2,9 @@
 
 *Auto-generated on 2026-07-23 07:24*
 
-**Total Sources:** 37
+**Historical snapshot sources:** 37. Current seed enables 36: Haldimand is now blocked by
+operator decision pending approved parcel-coordinate handling (migration 39). Its historical
+entry below is retained for provenance, not as approval to download/import.
 
 **Data Types Across All Sources:** Address Points, Administrative Boundaries, Postal Code Areas
 
@@ -106,17 +108,17 @@
 | City of Hamilton - Addresses | City of Hamilton Open Data Licence | Yes | [View](https://www.hamilton.ca/city-council/data-maps/open-data/open-data-licence-terms-and-conditions) | Open and permissive license but not u... |
 | City of Kawartha Lakes Address Points | Open Data | Yes | [View](https://open-data-kawartha.hub.arcgis.com/pages/termsofservice) | Permissive license. Data available at... |
 | City of Kingston - Address Points | City of Kingston Open Data Licence | Yes | [View](https://www.cityofkingston.ca/media/wtpgpkb0/gis_license_opendata.pdf) | Based on Open Government License. Com... |
-| City of London - Address Points | City of London Terms of Use | Yes | [View](https://london.ca/terms-of-use) | Fully permissive license similar to W... |
+| City of London - Address Points | Terms of Use – City of London Open Data | Yes | [View](https://london.maps.arcgis.com/sharing/rest/content/items/e31458fd0c7e41dd9f93144a9550781d/data) | Credit optional; redistribution must include terms/URL and bind recipients without further restrictions. |
 | City of Ottawa - Address Points | Open Government Licence - Ottawa | Yes | [View](https://ottawa.ca/en/city-hall/open-transparent-and-accountable-government/open-data) | - |
 | City of Peterborough Addresses | Open Government License - Permissive | Yes | [View](https://data-ptbo.opendata.arcgis.com/pages/terms-of-use) | - |
-| City of Sarnia - Address Points | Open Government License | Yes | [View](https://city-of-sarnia.hub.arcgis.com/pages/terms-of-use) | Commercial use permitted with attribu... |
+| City of Sarnia - Address Points | Open Government Licence – City of Sarnia | Yes | [View](https://city-of-sarnia.hub.arcgis.com/pages/terms-of-use) | Commercial reuse permitted; verified default attribution recorded in the seed. Licence archived under docs/licences/. |
 | City of Thunder Bay - Municipal Address Points | Open Government License | Yes | [View](https://www.thunderbay.ca/en/city-hall/open-data-licence.aspx) | Commercial use permitted with attribu... |
 | City of Toronto - Address Points (MTOR) | Open Government Licence - Toronto | Yes | [View](https://open.toronto.ca/open-data-licence/) | - |
-| City of Windsor - Address Points | City of Windsor Open Data Terms of Use | Yes | [View](https://opendata.citywindsor.ca/) | Open Data Terms of Use. Commercial us... |
+| City of Windsor - Address Points | Open Government Licence – The Corporation of the City of Windsor | Yes | [View](https://opendata.citywindsor.ca/Documents/OpenDataTermsofUse.pdf) | Commercial reuse permitted; verified default attribution recorded in the seed. Licence archived under docs/licences/. |
 | District Municipality of Muskoka - Address Points | Open Data License - Muskoka | Yes | [View](https://map.muskoka.on.ca/pages/terms-of-use) | - |
 | Dufferin County - Address Points | Open Government Licence - Dufferin County | Yes | [View](https://www.dufferincounty.ca/wp-content/uploads/2024/03/Dufferin-Open-Government-License.pdf) | Based on Open Government License. Com... |
 | Durham Region - Address Points | Region of Durham Open Data Licence v.1.0 | Yes | [View](https://www.durham.ca/en/regional-government/resources/Documents/OpenDataLicenceAgreement.pdf) | Commercial use allowed. Attribution o... |
-| Elgin County - Address Points | Open Government Licence - Elgin County | Yes | [View](https://geohub.elgin.ca) | Based on Open Government License. Com... |
+| Elgin County - Address Points | Open Government Licence – County of Elgin | Yes | [View](https://elgin-county.maps.arcgis.com/sharing/rest/content/items/d4f8cfbd8aa64adaa3cd983abf258419/data) | Commercial reuse permitted; verified default attribution recorded in the seed. Licence archived under docs/licences/. |
 | Essex County / Tecumseh | Open Government Licence | Yes | [View](https://gisweb.countyofessex.ca/OpenData/County%20of%20Essex%20-%20Open%20Government%20Licence.pdf) | Commercial use allowed with attributi... |
 | Frontenac County | Frontenac Open Data Licence (Open Government License adapted) | Yes | [View](https://frontenacmaps.ca) | Commercial use allowed, requires attr... |
 | Greater Sudbury | commercial_with_attribution | Yes | [View](https://www.greatersudbury.ca/city-hall/open-government/open-data/licence/) | Adapted Open Government License - req... |
@@ -174,7 +176,7 @@
 
 ### City of London - Address Points
 
-**General Notes:** Need to find ArcGIS FeatureServer endpoint for address/parcel data.
+**General Notes:** Verified address-point layer at `https://maps.london.ca/server/rest/services/OpenData/OpenData_Community/MapServer/0`. The former `/arcgisa/` endpoint returns 404. See the archived London terms: credit is optional, but redistribution has terms-sharing obligations.
 
 ### City of Ottawa - Address Points
 
@@ -186,7 +188,7 @@
 
 ### City of Sarnia - Address Points
 
-**General Notes:** Confirmed REST access
+**General Notes:** Verified `Addresses_Open_Data_AGOL/FeatureServer/0`; the older `Addresses_Open_Data` service returns Invalid URL. Point samples match the existing Sarnia field mapping.
 
 ### City of Toronto - Address Points (MTOR)
 
@@ -194,7 +196,7 @@
 
 ### City of Windsor - Address Points
 
-**General Notes:** Rich parcel data with address range, roll number, street name, zoning. Updated monthly. Formats: CSV, DWG, KMZ, SHP, XLS.
+**General Notes:** Verified point layer `open_data_services/propertyparcels/MapServer/0` (layer name `address_point`). Use `address_number`, `property_address`, `roll_number` and `ward_number`; do not reuse the old layer schema.
 
 ### Dufferin County - Address Points
 
@@ -206,7 +208,7 @@
 
 ### Elgin County - Address Points
 
-**General Notes:** Address points for Elgin County municipalities.
+**General Notes:** Verified `Elgin_Civic_Numbers_2026/FeatureServer/0`; the 2025 service returns Invalid URL. Civic number and full label fields are now `Civic` and `Address`. County of Elgin licence PDF is archived under docs/licences/.
 
 ### Essex County / Tecumseh
 
@@ -224,7 +226,7 @@
 
 **API Notes:** Parcels dataset with address information. Max 2000 records per request, supports pagination.
 
-**General Notes:** Server https://maps.haldimandcounty.on.ca not responding. Need to find alternate endpoint.
+**General Notes:** The configured `https://gis.haldimandcounty.ca/server/rest/services/Topo/ParcelsOnlinePublic/FeatureServer/0` still returns address-bearing parcel polygons even if absent from the Hub catalogue. It is not an address-point layer. The current importer takes the first polygon vertex, not a verified address location; review coordinate policy before importing. It is now blocked by the seed and migration 39 pending approved parcel-coordinate handling.
 
 ### Hastings County
 

@@ -216,6 +216,18 @@ async def show_status(conn: asyncpg.Connection, migrations: list[dict]) -> None:
         print("\nAll migrations are up to date.")
 
 
+async def seed_missing_base_sources(conn) -> None:
+    """Data migrations may populate only part of an otherwise fresh registry."""
+    base_keys = {
+        'nar_ontario', 'toronto_addresses', 'guelph_addresses', 'ottawa_addresses',
+        'hamilton_addresses', 'fsa_boundaries', 'ontario_municipal_boundaries',
+        'bruce_county_addresses', 'middlesex_county_addresses',
+    }
+    rows = await conn.fetch('SELECT source_key FROM data_sources')
+    if not base_keys.issubset({row['source_key'] for row in rows}):
+        await conn.execute((MIGRATIONS_FILE.parent / 'seed_data_sources.sql').read_text())
+
+
 async def main():
     parser = argparse.ArgumentParser(
         description='Database migration runner with version tracking'
@@ -298,8 +310,8 @@ async def main():
             print(f"Force re-applying Migration {args.force}")
 
         if not pending:
-            if args.initialize and not await conn.fetchval('SELECT count(*) FROM data_sources'):
-                await conn.execute((MIGRATIONS_FILE.parent / 'seed_data_sources.sql').read_text())
+            if args.initialize:
+                await seed_missing_base_sources(conn)
             print("All migrations already applied.")
             mismatches = await verify_applied_checksums(conn, migrations)
             if mismatches:
@@ -334,8 +346,8 @@ async def main():
         if failed:
             sys.exit(1)
 
-        if args.initialize and not await conn.fetchval('SELECT count(*) FROM data_sources'):
-            await conn.execute((MIGRATIONS_FILE.parent / 'seed_data_sources.sql').read_text())
+        if args.initialize:
+            await seed_missing_base_sources(conn)
         print(f"\nAll {len(pending)} migration(s) applied successfully")
 
         # Verify stored checksums of all applied migrations against freshly

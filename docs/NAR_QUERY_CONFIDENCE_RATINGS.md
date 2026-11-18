@@ -99,7 +99,7 @@ similarity scaling that has already been applied to `base_confidence`.
 
 ## Upgrades and verification
 
-Response-cache namespace v5 invalidates older labels/scores/factors and unit results without flushing API-key or
+Response-cache namespace v6 invalidates older labels/scores/factors, unit results and retired Haldimand matches without flushing API-key or
 rate-limit state. Rebuild/recreate the API; no database migration or source reimport is required
 for scoring changes. Existing NAR coordinates and municipal source exclusions are unchanged.
 
