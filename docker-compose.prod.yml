@@ -209,6 +209,8 @@ services:
       DB_NAME: ${DB_NAME:-geocoder}
       DB_USER: ${DB_USER:-geocoder}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      NAR_DOWNLOAD_URL: ${NAR_DOWNLOAD_URL:-}
+      NAR_ARCHIVE_PATH: ${NAR_ARCHIVE_PATH:-}
     volumes:
       - ./data_sourcing/data_sources:/app/data_sourcing/data_sources
     depends_on:

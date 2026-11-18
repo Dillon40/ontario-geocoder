@@ -143,7 +143,46 @@ make docker-etl ETL_ARGS='--source guelph_addresses --force'
 make docker-etl ETL_ARGS='--source guelph_addresses --import-only --force'
 ```
 
-NAR downloads automatically. `--skip-manual` only skips sources explicitly marked manual in
+### Headless NAR access
+
+The downloader uses ordinary HTTP, streams the ZIP to disk and extracts only Ontario CSVs
+with bounded memory. It requires neither a browser nor a paid PUMF subscription. However,
+**unattended access is not guaranteed**: Statistics Canada can challenge the release page
+and the archive itself. Both the June 2026 ZIP and current PDF returned HTTP 403 with
+`cf-mitigated: challenge` during verification. The PDF is documentation, not address data.
+The former public NAR API was discontinued with the GC API Store in September 2023
+([official catalogue notice](https://open.canada.ca/data/en/dataset/849db3e4-6e26-462a-b7dd-db0e6c8325fe)).
+
+A Cloudflare challenge is a nonzero setup failure with actionable diagnostics; the downloader
+does not retry indefinitely, spoof browsers or install a challenge solver. For reliable headless
+operation, obtain an approved bulk-download route/allowlisting from Statistics Canada, or
+stage an authorized release archive through your deployment process. Open-data reuse permission
+does not guarantee unrestricted access to a particular server.
+
+Optional `.env` settings, forwarded to the Compose ETL service (set **only one**):
+
+```dotenv
+# Explicit authorized HTTPS ZIP URL; skips discovery, does not bypass access controls.
+# Pin and maintain the release deliberately; this does not track the latest release.
+NAR_DOWNLOAD_URL=https://www150.statcan.gc.ca/n1/pub/46-26-0002/2022001/202606.zip
+```
+
+If the archive URL is also challenged, an operator-supplied archive avoids network access:
+
+```dotenv
+# Place release.zip under data_sourcing/data_sources/nar_ontario/ on the host.
+NAR_ARCHIVE_PATH=/app/data_sourcing/data_sources/nar_ontario/release.zip
+```
+
+Then run `make docker-etl ETL_ARGS='--source nar_ontario --commercial-only'`.
+Native deployments use the same variables with native filesystem paths. Existing extracted
+Ontario CSVs can instead be imported using `--source nar_ontario --import-only`.
+Allow disk for the national ZIP, Ontario CSVs, PostGIS indexes and WAL; low RAM does not
+eliminate these disk requirements. Extraction validates all selected files in staging before
+replacing retained Ontario CSVs, and removes obsolete part files only after validation.
+Do not treat municipal-only operation as complete province-wide coverage.
+
+NAR normally downloads automatically. `--skip-manual` only skips sources explicitly marked manual in
 the metadata; it does not skip NAR. Setup processes sources in dependency order. Failures are
 reported with a nonzero exit status; noninteractive runs do not prompt on failure. Inspect the
 summary before rerunning failed sources. Do not treat partial imports as complete coverage.
