@@ -38,7 +38,8 @@ async def load_locations(file_path: str) -> Dict[str, dict]:
     line_count = 0
     valid_count = 0
 
-    with open(file_path, 'r', encoding='utf-8') as f:
+    # StatCan CSVs may start with a BOM; it must not become part of LOC_GUID.
+    with open(file_path, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
 
         for row in reader:
@@ -242,7 +243,7 @@ async def import_addresses(file_path: str, location_map: Dict[str, dict],
     with_coords_count = 0
     import_id = tracker.import_id if tracker else None
 
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
 
         for row in reader:
