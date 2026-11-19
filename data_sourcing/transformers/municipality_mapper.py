@@ -12,14 +12,10 @@ Also supports:
 
 Preserves original city name in city_original for audit trail.
 """
-import logging
 from typing import Any, Dict, Optional
 
 from .base import AsyncTransformer, TransformContext, TransformResult
 from .db_retry import retry_async
-
-logger = logging.getLogger(__name__)
-
 
 def normalize_bilingual_name(name: str) -> str:
     """
@@ -202,29 +198,20 @@ class MunicipalityMapper(AsyncTransformer):
             async with self._pool.acquire() as conn:
                 return await conn.fetchrow(query, longitude, latitude)
 
-        try:
-            row = await retry_async(
-                _do_lookup,
-                operation_name="MunicipalityMapper.lookup_municipality_from_coords",
-            )
-            if row and row['municipality_name']:
-                # Normalize: "CITY OF TORONTO" -> "Toronto"
-                name = row['municipality_name']
-                # Remove common prefixes
-                prefixes = ['CITY OF ', 'TOWN OF ', 'MUNICIPALITY OF ',
-                            'TOWNSHIP OF ', 'COUNTY OF ']
-                for prefix in prefixes:
-                    if name.upper().startswith(prefix):
-                        name = name[len(prefix):]
-                        break
-                # Convert to title case
-                return name.strip().title()
-        except Exception as exc:
-            logger.warning(
-                "MunicipalityMapper.lookup_municipality_from_coords failed "
-                "for (%s, %s): %s: %s",
-                latitude, longitude, type(exc).__name__, exc,
-            )
+        row = await retry_async(
+            _do_lookup,
+            operation_name="MunicipalityMapper.lookup_municipality_from_coords",
+        )
+        if row and row['municipality_name']:
+            # Normalize: "CITY OF TORONTO" -> "Toronto"
+            name = row['municipality_name']
+            prefixes = ['CITY OF ', 'TOWN OF ', 'MUNICIPALITY OF ',
+                        'TOWNSHIP OF ', 'COUNTY OF ']
+            for prefix in prefixes:
+                if name.upper().startswith(prefix):
+                    name = name[len(prefix):]
+                    break
+            return name.strip().title()
 
         return None
 
@@ -260,21 +247,18 @@ class MunicipalityMapper(AsyncTransformer):
             lon = context.get_field('longitude')
             if lat is not None and lon is not None:
                 try:
-                    derived_city = await self.lookup_municipality_from_coords(
-                        float(lat), float(lon)
-                    )
+                    lat, lon = float(lat), float(lon)
+                except (ValueError, TypeError):
+                    # Source data is validated later; lookup failures are not.
+                    pass
+                else:
+                    derived_city = await self.lookup_municipality_from_coords(lat, lon)
                     if derived_city:
                         context.set_field(
-                            'city',
-                            derived_city,
-                            self.name,
-                            reason="Derived from coordinates via spatial lookup"
-                        )
+                            'city', derived_city, self.name,
+                            reason="Derived from coordinates via spatial lookup")
                         modified = True
                         city = derived_city
-                except (ValueError, TypeError):
-                    # Invalid coordinates - continue with other methods
-                    pass
 
         # Apply default city if still missing
         if not city and self.default_city:

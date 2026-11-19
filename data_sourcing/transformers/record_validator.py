@@ -113,7 +113,8 @@ class RecordValidator(BaseTransformer):
 
     # Default required field groups
     DEFAULT_REQUIRED_GROUPS = [
-        ['latitude', 'longitude'],  # Must have coordinates
+        ['latitude'],  # Both coordinate components are required
+        ['longitude'],
         ['street_number', 'full_address'],  # Must have address identifier
     ]
 
@@ -181,7 +182,7 @@ class RecordValidator(BaseTransformer):
             context.add_warning(self.name, warning)
 
         for error in errors:
-            context.add_error(self.name, error)
+            context.add_error(self.name, error, data_error=True)
 
         if errors:
             return TransformResult.ERROR
@@ -217,7 +218,7 @@ class CoordinateValidator(BaseTransformer):
         if self.require_coordinates and (lat is None or lon is None):
             context.add_error(
                 self.name,
-                "Missing required coordinates"
+                "Missing required coordinates", data_error=True
             )
             return TransformResult.ERROR
 
@@ -225,7 +226,7 @@ class CoordinateValidator(BaseTransformer):
         if lat is not None and lon is not None:
             is_valid, error_msg = validate_coordinates(lat, lon, self.bounds_name)
             if not is_valid:
-                context.add_error(self.name, error_msg)
+                context.add_error(self.name, error_msg, data_error=True)
                 return TransformResult.ERROR
 
         return TransformResult.SUCCESS
@@ -256,7 +257,7 @@ class PostalCodeValidator(BaseTransformer):
 
         # Check if postal code is required
         if self.require_postal and not postal:
-            context.add_error(self.name, "Missing required postal code")
+            context.add_error(self.name, "Missing required postal code", data_error=True)
             return TransformResult.ERROR
 
         # Validate format if present
@@ -264,7 +265,7 @@ class PostalCodeValidator(BaseTransformer):
             is_valid, error_msg = validate_postal_code(postal)
             if not is_valid:
                 if self.fail_on_invalid:
-                    context.add_error(self.name, error_msg)
+                    context.add_error(self.name, error_msg, data_error=True)
                     return TransformResult.ERROR
                 else:
                     context.add_warning(self.name, error_msg)

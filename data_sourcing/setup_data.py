@@ -150,6 +150,8 @@ class ImportResult:
     rows_deleted: int = 0
     rows_failed: int = 0
     rows_skipped: int = 0
+    rows_quarantined: int = 0
+    has_warnings: bool = False
     duration_seconds: int = 0
     error_message: Optional[str] = None
 
@@ -170,6 +172,10 @@ class ImportResult:
         if self.rows_skipped:
             parts.append(f"{self.rows_skipped:,} skipped")
 
+        if self.rows_quarantined:
+            parts.append(f"{self.rows_quarantined:,} quarantined")
+        if self.has_warnings:
+            parts.insert(0, 'COMPLETED WITH WARNINGS')
         if parts:
             return f"{', '.join(parts)} ({self.duration_seconds}s)"
         elif self.rows_processed:
@@ -190,6 +196,8 @@ async def get_latest_import_stats(conn, source_key: str, after_id: int = 0) -> O
             sum(rows_updated) AS rows_updated, sum(rows_deleted) AS rows_deleted,
             sum(rows_failed) AS rows_failed, sum(rows_skipped) AS rows_skipped,
             sum(duration_seconds) AS duration_seconds,
+            sum(COALESCE((metadata->>'rows_quarantined')::integer, 0)) AS rows_quarantined,
+            bool_or(metadata->>'outcome' = 'completed_with_warnings') AS has_warnings,
             string_agg(error_message, '; ') AS error_message
         FROM import_history
         WHERE source_key = $1 AND id > $2
@@ -412,6 +420,8 @@ async def run_import_with_tracking(conn, source_info: dict, force: bool = False)
             rows_deleted=stats.get('rows_deleted') or 0,
             rows_failed=stats.get('rows_failed') or 0,
             rows_skipped=stats.get('rows_skipped') or 0,
+            rows_quarantined=stats.get('rows_quarantined') or 0,
+            has_warnings=bool(stats.get('has_warnings')),
             duration_seconds=stats.get('duration_seconds') or 0,
             error_message=stats.get('error_message') or (
                 f"{stats['rows_failed']} rows failed; see import_row_errors" if stats.get('rows_failed') else

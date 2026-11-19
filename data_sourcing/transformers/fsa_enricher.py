@@ -8,14 +8,10 @@ the fsa_boundaries table.
 Generates warning (not error) if FSA not found - coordinates near
 boundaries or offshore may not match any FSA.
 """
-import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 from .base import AsyncTransformer, TransformContext, TransformResult
 from .db_retry import retry_async
-
-logger = logging.getLogger(__name__)
-
 
 class FSAEnricher(AsyncTransformer):
     """
@@ -66,15 +62,11 @@ class FSAEnricher(AsyncTransformer):
             async with self._pool.acquire() as conn:
                 return await conn.fetchrow(query, lon, lat)
 
-        try:
-            row = await retry_async(
-                _do_lookup,
-                operation_name="FSAEnricher.lookup_fsa",
-            )
-            return row['fsa_code'] if row else None
-        except Exception:
-            logger.warning("FSAEnricher.lookup_fsa failed after retries for (%s, %s)", lon, lat)
-            return None
+        row = await retry_async(
+            _do_lookup,
+            operation_name="FSAEnricher.lookup_fsa",
+        )
+        return row['fsa_code'] if row else None
 
     async def lookup_fsa_batch(
         self,
@@ -83,7 +75,7 @@ class FSAEnricher(AsyncTransformer):
         """
         Batch lookup FSA codes for multiple coordinates.
 
-        Falls back to individual lookups if the batch query fails after retries.
+        Database failures propagate after retries; they are not empty matches.
 
         Args:
             coords: List of (index, lon, lat) tuples
@@ -118,21 +110,12 @@ class FSAEnricher(AsyncTransformer):
             async with self._pool.acquire() as conn:
                 return await conn.fetch(query, indices, lons, lats)
 
-        try:
-            rows = await retry_async(
-                _do_batch,
-                operation_name="FSAEnricher.lookup_fsa_batch",
-            )
-            for row in rows:
-                results[row['idx']] = row['fsa_code']
-        except Exception:
-            logger.warning(
-                "FSAEnricher.lookup_fsa_batch failed after retries, "
-                "falling back to individual lookups for %d coordinates",
-                len(coords),
-            )
-            for idx, lon, lat in coords:
-                results[idx] = await self.lookup_fsa(lon, lat)
+        rows = await retry_async(
+            _do_batch,
+            operation_name="FSAEnricher.lookup_fsa_batch",
+        )
+        for row in rows:
+            results[row['idx']] = row['fsa_code']
 
         return results
 

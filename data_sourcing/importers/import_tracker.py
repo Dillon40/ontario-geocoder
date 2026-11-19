@@ -47,6 +47,7 @@ class ImportStats:
     rows_updated: int = 0
     rows_failed: int = 0
     rows_skipped: int = 0
+    rows_quarantined: int = 0  # Subset of skipped: expected malformed address rows
     rows_deleted: int = 0  # Stale records soft-deleted during this import
 
     def to_dict(self) -> dict:
@@ -56,6 +57,7 @@ class ImportStats:
             'rows_updated': self.rows_updated,
             'rows_failed': self.rows_failed,
             'rows_skipped': self.rows_skipped,
+            'rows_quarantined': self.rows_quarantined,
             'rows_deleted': self.rows_deleted
         }
 
@@ -74,6 +76,8 @@ class ImportStats:
             parts.append(f"{self.rows_failed:,} failed")
         if self.rows_skipped:
             parts.append(f"{self.rows_skipped:,} skipped")
+        if self.rows_quarantined:
+            parts.append(f"WARNING: {self.rows_quarantined:,} quarantined")
         return ", ".join(parts) if parts else "No rows processed"
 
 
@@ -140,7 +144,7 @@ class ImportTracker:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         # Flush any remaining errors
-        await self._flush_error_batch()
+        await self.flush_row_errors()
 
         duration = int((datetime.now() - self.start_time).total_seconds())
 
@@ -153,6 +157,11 @@ class ImportTracker:
             error_message = None
             error_tb = None
 
+        self.metadata['rows_quarantined'] = self.stats.rows_quarantined
+        self.metadata['outcome'] = (
+            'failed' if exc_type else
+            'completed_with_warnings' if self.stats.rows_quarantined or
+            self.metadata.get('stale_deletion_suppressed') else 'completed')
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 UPDATE import_history SET
@@ -166,13 +175,14 @@ class ImportTracker:
                     rows_skipped = $8,
                     rows_deleted = $9,
                     error_message = $10,
-                    error_traceback = $11
+                    error_traceback = $11,
+                    metadata = $12::jsonb
                 WHERE id = $1
             """, self.import_id, status, duration,
                self.stats.rows_processed, self.stats.rows_inserted,
                self.stats.rows_updated, self.stats.rows_failed,
                self.stats.rows_skipped, self.stats.rows_deleted,
-               error_message, error_tb)
+               error_message, error_tb, json.dumps(self.metadata))
 
         return False  # Don't suppress exceptions
 
@@ -192,8 +202,9 @@ class ImportTracker:
             error_type: category of error (e.g., 'validation_error', 'parse_error')
             error_message: description of the error
             row_data: original row data for debugging (optional)
-            count_failure: False only for explicitly excluded non-address source features;
+            count_failure: False for explicit exclusions or validation quarantines;
                            these remain audited and increment rows_skipped instead.
+                           validation_quarantine also increments rows_quarantined.
         """
         self._error_batch.append({
             'import_id': self.import_id,
@@ -206,12 +217,14 @@ class ImportTracker:
             self.stats.rows_failed += 1
         else:
             self.stats.rows_skipped += 1
+            if error_type == 'validation_quarantine':
+                self.stats.rows_quarantined += 1
 
         if len(self._error_batch) >= self._error_batch_size:
-            await self._flush_error_batch()
+            await self.flush_row_errors()
 
-    async def _flush_error_batch(self) -> None:
-        """Write batched errors to database."""
+    async def flush_row_errors(self) -> None:
+        """Persist diagnostics before completion or stale retirement."""
         if not self._error_batch:
             return
 

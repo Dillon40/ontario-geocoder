@@ -144,8 +144,7 @@ class TransformPipeline:
             setup_results = await cls._run_setup_transformers(pool)
             for result in setup_results:
                 if result.status == 'error':
-                    import logging
-                    logging.warning(f"Setup transformer warning: {result.reason}")
+                    raise RuntimeError(f"Transform setup failed: {result.reason}")
 
         # Phase 2: Build per-record transformers
         loader = TransformConfigLoader(source_name)

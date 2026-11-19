@@ -187,12 +187,35 @@ the metadata; it does not skip NAR. Setup processes sources in dependency order.
 reported with a nonzero exit status; noninteractive runs do not prompt on failure. Inspect the
 summary before rerunning failed sources. Do not treat partial imports as complete coverage.
 The import audit stores file-level results and row diagnostics; skipped files report zero current work.
-Processing/validation errors make the import fail. One explicit exclusion policy applies to published
-point layers: a feature with **neither a civic number nor a full address** is not an address record.
-It is quarantined as `not_address_record` in `import_row_errors`, counted in `rows_skipped`, and
-never geocoded. This is distinct from a failed transform/SQL write, which is counted in
-`rows_failed` and makes setup exit nonzero. The historical Middlesex test import contained four
-such non-address features. That entire municipal dataset is now excluded, not just those four
+Municipal imports quarantine explicitly recognized validation defects (such as missing or invalid
+coordinates) as `validation_quarantine` in `import_row_errors`, retaining the source feature,
+property ID and reason. These increment `rows_skipped`, not `rows_failed`. Successful imports
+with quarantines report **COMPLETED WITH WARNINGS**; `import_history.status` stays `completed`
+for compatibility, while `metadata.outcome` is `completed_with_warnings` and
+`metadata.rows_quarantined` records the separate count. Identical-file skips retain a warning.
+Unexpected transformer exceptions, critical mapping/schema loss, corrupt input and SQL/connection
+failures still fail setup; they are not treated as acceptable source dirtiness. Reference-setup
+failures and exhausted FSA/municipality lookup retries are fatal; a successful spatial query with
+no match remains a warning.
+
+Two independent safety gates run before municipal import completion or stale retirement:
+`IMPORT_MIN_ACCEPT_RATIO` (default **0.99**) requires accepted / eligible input rows to be at
+least 99%, including on fresh imports. `STALE_DELETE_MIN_RATIO` (default **0.90**) requires at
+least 90% of the previously active source IDs to be present. Both settings must be finite values
+in `(0, 1]`; reducing the deletion threshold does not relax quality validation. Quarantined stable
+IDs count as present, but not accepted, and preserve their previous good database rows. If a
+rejected row has only a generated coordinate/row-number ID, stale retirement is suppressed for
+the entire import. Completeness still applies in `report_only`/`skip` modes. Batches commit
+individually: a failed gate can leave newly imported good rows, but cannot trigger stale retirement.
+Hastings continues preferring its published LAT/LONG attributes; invalid pairs are quarantined,
+not recovered from geometry. Use `--import-only --force` to re-evaluate retained files after
+changing validation policy; unchanged-file skips do not reprocess rows.
+
+One explicit exclusion policy applies to published point layers: a feature with **neither a civic
+number nor a full address** is not an address record. It is audited as `not_address_record`, counted
+in `rows_skipped`, excluded from the quality denominator, and never geocoded. This is distinct
+from a validation quarantine or processing failure. An import with no accepted rows still fails.
+The historical Middlesex test import contained four such non-address features. That entire municipal dataset is now excluded, not just those four
 features; its import history is retained for audit.
 
 ```bash

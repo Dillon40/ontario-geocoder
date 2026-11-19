@@ -24,6 +24,7 @@ Usage:
     property_id = PropertyIdGenerator.generate('toronto', record, row_number)
 """
 import hashlib
+import math
 import os
 from typing import Optional
 from pathlib import Path
@@ -47,6 +48,25 @@ class StaleDeletionAbortedError(RuntimeError):
     to the database (likely a truncated or partial download). No records
     were soft-deleted. Callers should treat this as an import failure.
     """
+
+
+def validate_import_quality(accepted: int, quarantined: int) -> float:
+    """Require usable rows independently of the stale-deletion threshold.
+
+    Non-address features are excluded from this denominator. No existing
+    database baseline is needed, so fresh imports receive the same check.
+    """
+    minimum = float(os.getenv('IMPORT_MIN_ACCEPT_RATIO', '0.99'))
+    if not math.isfinite(minimum) or not 0 < minimum <= 1:
+        raise ValueError('IMPORT_MIN_ACCEPT_RATIO must be finite and in (0, 1]')
+    eligible = accepted + quarantined
+    ratio = accepted / eligible if eligible else 0.0
+    if not accepted or ratio < minimum:
+        raise RuntimeError(
+            f'IMPORT QUALITY FAILED: {accepted:,}/{eligible:,} eligible rows accepted '
+            f'({ratio:.4%}; minimum {minimum:.2%}); {quarantined:,} quarantined. '
+            'No stale records were retired.')
+    return ratio
 
 
 class FileHashManager:
@@ -111,7 +131,7 @@ class FileHashManager:
         # Get last successful import for this source
         async with pool.acquire() as conn:
             last_import = await conn.fetchrow("""
-                SELECT id, file_hash, completed_at
+                SELECT id, file_hash, completed_at, metadata
                 FROM import_history
                 WHERE source_key = $1
                   AND status = 'completed'
@@ -124,7 +144,19 @@ class FileHashManager:
 
         if last_import and last_import['file_hash'] == current_hash:
             completed = last_import['completed_at']
-            return True, f"File unchanged since {completed.strftime('%Y-%m-%d %H:%M:%S')}"
+            reason = f"File unchanged since {completed.strftime('%Y-%m-%d %H:%M:%S')}"
+            # asyncpg's default JSONB codec returns text. Retain warning
+            # visibility when an identical quarantined file is skipped.
+            metadata = last_import.get('metadata') or {}
+            if isinstance(metadata, str):
+                import json
+                metadata = json.loads(metadata)
+            if metadata.get('outcome') == 'completed_with_warnings':
+                reason += (f"; WARNING: previous import completed with warnings; "
+                           f"{metadata.get('rows_quarantined', 0):,} rows quarantined")
+                if metadata.get('stale_deletion_suppressed'):
+                    reason += '; stale retirement was suppressed'
+            return True, reason
 
         return False, None
 
@@ -177,6 +209,7 @@ class StaleRecordDetector:
         self.id_column = id_column
         self._seen_ids: set[str] = set()
         self._active_count: Optional[int] = None
+        self._existing_ids: Optional[set[str]] = None
         if min_seen_ratio is None:
             min_seen_ratio = float(os.getenv(
                 'STALE_DELETE_MIN_RATIO', DEFAULT_STALE_DELETE_MIN_RATIO))
@@ -186,7 +219,8 @@ class StaleRecordDetector:
         """
         Mark a record as seen in the current import.
 
-        Call this for each record successfully processed from the import file.
+        Call for accepted records and rejected records with stable source IDs.
+        Presence is not evidence that a record passed quality validation.
 
         Args:
             record_id: The unique identifier of the record
@@ -209,6 +243,9 @@ class StaleRecordDetector:
         Returns:
             List of record IDs that are stale (exist in DB but not in import)
         """
+        if self._existing_ids is not None:
+            return list(self._existing_ids - self._seen_ids)
+
         # Build query based on table type
         if self.table_name == 'properties':
             query = f"""
@@ -246,6 +283,7 @@ class StaleRecordDetector:
             rows = await conn.fetch(query, *args)
 
         existing_ids = {str(row[self.id_column]) for row in rows}
+        self._existing_ids = existing_ids
         self._active_count = len(existing_ids)
         stale_ids = existing_ids - self._seen_ids
 
@@ -281,29 +319,7 @@ class StaleRecordDetector:
         """
         if not stale_ids:
             return 0
-
-        active_count = self._active_count
-        if active_count is None:
-            # detect_stale_records() was not called first; seen + stale is
-            # the best available estimate of the active count (they are
-            # disjoint once seen records have been upserted).
-            active_count = self.seen_count + len(stale_ids)
-
-        min_required = active_count * self.min_seen_ratio
-        if active_count > 0 and self.seen_count < min_required:
-            message = (
-                f"STALE DELETION ABORTED for {self.table_name} "
-                f"(source: {self.source_key}): import file contained only "
-                f"{self.seen_count:,} records but the database has "
-                f"{active_count:,} active records "
-                f"({self.seen_count / active_count:.1%} < threshold "
-                f"{self.min_seen_ratio:.0%}). The file is likely truncated "
-                f"or partial. NO records were soft-deleted. If this "
-                f"shrinkage is genuine, re-run with a lower "
-                f"STALE_DELETE_MIN_RATIO."
-            )
-            print(f"\n{'!' * 70}\nERROR: {message}\n{'!' * 70}")
-            raise StaleDeletionAbortedError(message)
+        self.validate_completeness(stale_ids)
 
         deleted_count = 0
 
@@ -322,13 +338,44 @@ class StaleRecordDetector:
                           AND (is_deleted = FALSE OR is_deleted IS NULL)
                     """, self.import_id, batch)
 
-                    # Parse affected row count from result string "UPDATE N"
                     if result:
-                        parts = result.split()
-                        if len(parts) >= 2:
-                            deleted_count += int(parts[1])
+                        deleted_count += int(result.split()[1])
 
         return deleted_count
+
+    def validate_completeness(self, stale_ids: list[str]) -> None:
+        """Check source presence before completion, even without deletion.
+
+        Snapshot active IDs before upserts by calling detect_stale_records().
+        New IDs must not disguise missing old IDs; quarantined stable IDs may
+        count as present, but never as accepted rows in the quality check.
+        """
+        active_count = self._active_count
+        if active_count is None:
+            # detect_stale_records() was not called first; seen + stale is
+            # the best available estimate of the active count (they are
+            # disjoint once seen records have been upserted).
+            active_count = self.seen_count + len(stale_ids)
+
+        present_count = (len(self._seen_ids & self._existing_ids)
+                         if self._existing_ids is not None else self.seen_count)
+        if not math.isfinite(self.min_seen_ratio) or not 0 < self.min_seen_ratio <= 1:
+            raise ValueError('STALE_DELETE_MIN_RATIO must be finite and in (0, 1]')
+        min_required = active_count * self.min_seen_ratio
+        if active_count > 0 and present_count < min_required:
+            message = (
+                f"STALE DELETION ABORTED for {self.table_name} "
+                f"(source: {self.source_key}): import file contained only "
+                f"{present_count:,} existing IDs but the database has "
+                f"{active_count:,} active records "
+                f"({present_count / active_count:.1%} < threshold "
+                f"{self.min_seen_ratio:.0%}). The file is likely truncated "
+                f"or partial. NO records were soft-deleted. If this "
+                f"shrinkage is genuine, re-run with a lower "
+                f"STALE_DELETE_MIN_RATIO."
+            )
+            print(f"\n{'!' * 70}\nERROR: {message}\n{'!' * 70}")
+            raise StaleDeletionAbortedError(message)
 
     async def report_stale_records(
         self,

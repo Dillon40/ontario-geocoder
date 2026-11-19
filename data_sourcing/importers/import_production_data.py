@@ -30,7 +30,9 @@ from pyproj import Transformer, CRS
 # Support both the orchestrator's direct-script call and documented python -m.
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from data_sourcing.importers.import_tracker import ImportTracker
-from data_sourcing.importers.import_utils import FileHashManager, StaleRecordDetector, PropertyIdGenerator
+from data_sourcing.importers.import_utils import (
+    FileHashManager, StaleRecordDetector, PropertyIdGenerator, validate_import_quality,
+)
 from data_sourcing.transformers import TransformPipeline
 from data_sourcing.db_utils import get_db_connection, get_db_pool, ensure_source_import_allowed
 
@@ -972,25 +974,20 @@ async def insert_batch(batch: list, source_name: str, pool: asyncpg.Pool,
 
 async def update_dataset_metadata(source_name: str, record_count: int, postal_prefixes: list, pool: asyncpg.Pool):
     """Update dataset metadata."""
-    try:
-        query = '''
-            INSERT INTO dataset_metadata (
-                dataset_name, municipality_name, postal_code_prefixes,
-                record_count, last_updated, active
-            ) VALUES ($1, $2, $3, $4, NOW(), true)
-            ON CONFLICT (dataset_name)
-            DO UPDATE SET
-                record_count = EXCLUDED.record_count,
-                last_updated = NOW()
-        '''
+    query = '''
+        INSERT INTO dataset_metadata (
+            dataset_name, municipality_name, postal_code_prefixes,
+            record_count, last_updated, active
+        ) VALUES ($1, $2, $3, $4, NOW(), true)
+        ON CONFLICT (dataset_name)
+        DO UPDATE SET
+            record_count = EXCLUDED.record_count,
+            last_updated = NOW()
+    '''
 
-        config = dataset_mappings.get(source_name, {})
-        municipality = config.get('municipality', source_name)
-
-        await pool.execute(query, source_name, municipality, postal_prefixes, record_count)
-
-    except asyncpg.UndefinedTableError:
-        print('Note: dataset_metadata table not yet created, skipping metadata update')
+    config = dataset_mappings.get(source_name, {})
+    municipality = config.get('municipality', source_name)
+    await pool.execute(query, source_name, municipality, postal_prefixes, record_count)
 
 
 async def import_geojson(file_path: str, source_name: str, batch_size: int,
@@ -1199,14 +1196,13 @@ async def import_geojson(file_path: str, source_name: str, batch_size: int,
 
         # Use ImportTracker to record this import operation
         async with ImportTracker(pool, source_name, file_path, 'full') as tracker:
-            # Initialize stale record detector (only if not skipping stale detection)
-            stale_detector = None
-            if stale_strategy != 'skip':
-                stale_detector = StaleRecordDetector(
-                    pool, tracker.import_id, source_name,
-                    'properties', 'property_id'
-                )
-                print(f'Stale record detection: {stale_strategy}')
+            # Snapshot before upserts so new IDs cannot mask missing old rows.
+            # Check completeness even when stale retirement is disabled.
+            stale_detector = StaleRecordDetector(
+                pool, tracker.import_id, source_name, 'properties', 'property_id')
+            await stale_detector.detect_stale_records()
+            print(f'Stale record detection: {stale_strategy}')
+            can_retire_stale = True
 
             # Process features
             batch = []
@@ -1214,6 +1210,7 @@ async def import_geojson(file_path: str, source_name: str, batch_size: int,
             postal_prefix_set = set()
             row_number = 0
             transform_errors = 0
+            excluded_nonaddresses = 0
 
             # Use the feature iterator (streaming or in-memory)
             for feature in feature_iterator():
@@ -1241,30 +1238,45 @@ async def import_geojson(file_path: str, source_name: str, batch_size: int,
                 # Generate property ID using standardized generator
                 # ALWAYS generate a prefixed ID to avoid collisions between sources
                 # (many sources use OBJECTID 1,2,3... which would otherwise collide)
+                reliable_id = any(record.get(k) and str(record[k]).strip()
+                                  for k in ('property_id', 'pin', 'assessment_roll_number'))
                 record['property_id'] = PropertyIdGenerator.generate(
                     source_name, record, row_number
                 )
 
-                # Some published point layers include empty/non-address features.
-                # Exclude ONLY absent civic/full-address identities, audit them,
-                # and distinguish this documented policy from processing errors.
+                # Audit non-address features separately from malformed addresses.
                 if not any(record.get(k) is not None and str(record[k]).strip()
                            for k in ('street_number', 'full_address')):
                     await tracker.log_row_error(row_number, 'not_address_record',
                         'Excluded source point without civic number or full address',
                         record, count_failure=False)
                     tracker.stats.rows_processed += 1
+                    excluded_nonaddresses += 1
+                    if reliable_id:
+                        stale_detector.mark_seen(record['property_id'])
+                    else:
+                        can_retire_stale = False
                     continue
 
                 # Apply transform pipeline (includes validation)
                 context = await pipeline.transform_async(record, row_number=row_number)
 
                 if context.has_errors:
-                    # Log transform/validation error
                     error_msg = '; '.join(e.message for e in context.errors)
-                    await tracker.log_row_error(row_number, 'transform_error', error_msg, record)
-                    tracker.stats.rows_skipped += 1
+                    # Quarantine known data defects, not transformer failures.
+                    if not all(e.data_error for e in context.errors):
+                        await tracker.log_row_error(row_number, 'transform_error', error_msg, record)
+                        raise RuntimeError(f'Processing failure at row {row_number}: {error_msg}')
+                    await tracker.log_row_error(
+                        row_number, 'validation_quarantine', error_msg,
+                        {'property_id': record['property_id'], 'feature': feature},
+                        count_failure=False)
+                    tracker.stats.rows_processed += 1
                     transform_errors += 1
+                    if reliable_id:
+                        stale_detector.mark_seen(record['property_id'])
+                    else:
+                        can_retire_stale = False
                 else:
                     # Use transformed record
                     transformed_record = context.record
@@ -1310,38 +1322,49 @@ async def import_geojson(file_path: str, source_name: str, batch_size: int,
                 tracker.stats.rows_updated += updated
                 tracker.stats.rows_processed += len(batch)
 
-            print(f'\n\nImport complete!')
+            print('\n\nInput processing finished; validating safety gates...')
             print(f'Total processed: {total_features}')
             print(f'Newly inserted: {tracker.stats.rows_inserted}')
             print(f'Updated existing: {tracker.stats.rows_updated}')
             print(f'Skipped: {tracker.stats.rows_skipped}')
-            print(f'Transform errors: {transform_errors}')
+            print(f'Validation quarantines: {transform_errors}')
             print(f'Failed: {tracker.stats.rows_failed}')
             print(f'Postal prefixes found: {", ".join(sorted(postal_prefix_set))}')
 
-            # Never retire old records or report success after processing errors.
+            # Validate quality and completeness before retiring stale rows.
+            # Non-address features are excluded from the quality denominator.
+            if row_number != total_features:
+                raise RuntimeError('Input feature count changed during processing')
             if tracker.stats.rows_failed:
                 raise RuntimeError(f'{tracker.stats.rows_failed} rows failed; see import_row_errors')
-            if total_features and not (tracker.stats.rows_inserted + tracker.stats.rows_updated):
-                raise RuntimeError('Source contained no importable address records')
+            accepted = tracker.stats.rows_inserted + tracker.stats.rows_updated
+            ratio = validate_import_quality(accepted, tracker.stats.rows_quarantined)
+            tracker.metadata.update({
+                'accepted_ratio': ratio,
+                'eligible_rows': total_features - excluded_nonaddresses,
+                'excluded_nonaddresses': excluded_nonaddresses,
+            })
+            stale_ids = await stale_detector.detect_stale_records()
+            stale_detector.validate_completeness(stale_ids)
+            if tracker.stats.rows_quarantined:
+                print(f'WARNING: {tracker.stats.rows_quarantined:,} rows quarantined; '
+                      f'accepted {ratio:.4%}; see import_row_errors')
 
-            # Handle stale records
-            if stale_detector:
-                print(f'\nDetecting stale records...')
-                stale_ids = await stale_detector.detect_stale_records()
+            # Persist diagnostics before retirement so audit failures preserve old rows.
+            await tracker.flush_row_errors()
+            await update_dataset_metadata(
+                source_name, accepted, sorted(postal_prefix_set), pool)
 
-                if stale_ids:
-                    print(f'Found {len(stale_ids):,} stale records (in DB but not in import file)')
-
-                    if stale_strategy == 'soft_delete':
-                        deleted = await stale_detector.soft_delete_stale_records(stale_ids)
-                        tracker.stats.rows_deleted = deleted
-                        print(f'Soft-deleted {deleted:,} stale records')
-                    elif stale_strategy == 'report_only':
-                        await stale_detector.report_stale_records(stale_ids)
-                        print('(Report only mode - no records modified)')
-                else:
-                    print('No stale records found')
+            # Rejected rows without stable IDs cannot establish which old rows remain.
+            if not can_retire_stale:
+                tracker.metadata['stale_deletion_suppressed'] = True
+                print('WARNING: stale retirement suppressed: rejected rows lack stable source IDs')
+            elif stale_strategy == 'soft_delete' and stale_ids:
+                deleted = await stale_detector.soft_delete_stale_records(stale_ids)
+                tracker.stats.rows_deleted = deleted
+                print(f'Soft-deleted {deleted:,} stale records')
+            elif stale_strategy == 'report_only':
+                await stale_detector.report_stale_records(stale_ids)
 
             # Print pipeline statistics
             print(f'\nTransform Pipeline Statistics:')
@@ -1350,15 +1373,6 @@ async def import_geojson(file_path: str, source_name: str, batch_size: int,
             # Print final summary with all stats
             print(f'\nFinal Import Statistics:')
             print(f'  {tracker.stats.summary()}')
-
-            # Update metadata
-            print('\nUpdating dataset metadata...')
-            # record_count = all rows carried by this file (inserted + updated);
-            # rows_inserted alone now only counts NEW rows since the xmax split.
-            await update_dataset_metadata(
-                source_name,
-                tracker.stats.rows_inserted + tracker.stats.rows_updated,
-                sorted(list(postal_prefix_set)), pool)
 
             print('Done!\n')
 

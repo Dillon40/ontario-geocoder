@@ -211,6 +211,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       NAR_DOWNLOAD_URL: ${NAR_DOWNLOAD_URL:-}
       NAR_ARCHIVE_PATH: ${NAR_ARCHIVE_PATH:-}
+      IMPORT_MIN_ACCEPT_RATIO: ${IMPORT_MIN_ACCEPT_RATIO:-0.99}
+      STALE_DELETE_MIN_RATIO: ${STALE_DELETE_MIN_RATIO:-0.90}
     volumes:
       - ./data_sourcing/data_sources:/app/data_sourcing/data_sources
     depends_on:

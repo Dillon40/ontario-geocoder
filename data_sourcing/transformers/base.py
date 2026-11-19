@@ -44,11 +44,12 @@ class TransformWarning:
 
 @dataclass
 class TransformError:
-    """A fatal error from transformation."""
+    """A transformation error; only explicit data defects may be quarantined."""
     transformer: str
     message: str
     field: Optional[str] = None
     details: Optional[Dict[str, Any]] = None
+    data_error: bool = False
 
 
 @dataclass
@@ -158,14 +159,17 @@ class TransformContext:
         transformer: str,
         message: str,
         field: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
+        *,
+        data_error: bool = False
     ) -> None:
-        """Add a fatal error."""
+        """Add an error; unexpected failures are never data quarantines."""
         self.errors.append(TransformError(
             transformer=transformer,
             message=message,
             field=field,
-            details=details
+            details=details,
+            data_error=data_error
         ))
         self.last_result = TransformResult.ERROR
 
