@@ -53,9 +53,8 @@ def test_verified_default_attributions_and_london_redistribution_terms():
     ('windsor_addresses',
      {'OBJECTID': 1, 'address_number': 3648, 'street_name': 'KING',
       'street_suffix': 'ST', 'street_direction': '', 'unit_number': '',
-      'property_address': '3648 KING ST', 'roll_number': '050-180-08500', 'ward_number': 3},
-     {'street_number': '3648', 'full_address': '3648 KING ST', 'ward': '3',
-      'assessment_roll_number': '050-180-08500'}),
+      'property_address': '3648 KING ST', 'ward_number': 3},
+     {'property_id': '1', 'street_number': '3648', 'full_address': '3648 KING ST', 'ward': '3'}),
     ('elgin_county_addresses',
      {'GlobalID': 'example-id', 'Civic': '12953', 'Address': '12953 IONA ROAD',
       'StrFULL': 'IONA ROAD', 'StrUNIT': 'N/A', 'MUNI': 'DUTTON/DUNWICH',
@@ -63,10 +62,13 @@ def test_verified_default_attributions_and_london_redistribution_terms():
      {'street_number': '12953', 'full_address': '12953 IONA ROAD', 'city': 'DUTTON/DUNWICH'}),
 ])
 def test_current_schemas_map_address_identity_and_optional_fields(key, properties, expected):
-    from data_sourcing.importers.import_production_data import map_fields
+    from data_sourcing.importers.import_production_data import map_fields, validate_field_mappings
     mappings = json.loads((ROOT / 'config/dataset-mappings.json').read_text())
     fields = mappings[key]['field_mappings']
     assert not set(fields.values()) - properties.keys()
+    assert validate_field_mappings([{'properties': properties}], fields, key) == (True, [])
     record = map_fields(properties, fields)
+    if key == 'windsor_addresses':
+        assert 'assessment_roll_number' not in record
     for target, value in expected.items():
         assert str(record[target]) == value

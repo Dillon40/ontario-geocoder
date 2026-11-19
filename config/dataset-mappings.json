@@ -611,7 +611,6 @@
       "street_direction": "street_direction",
       "unit_no": "unit_number",
       "full_address": "property_address",
-      "assessment_roll_number": "roll_number",
       "ward": "ward_number"
     },
     "transforms": {
