@@ -47,7 +47,7 @@ class TestRateLimitMiddleware:
     @pytest.mark.asyncio
     async def test_dispatch_excluded_path(self, middleware, mock_request, sample_api_key):
         """Test that excluded paths skip rate limiting."""
-        mock_request.url.path = '/health'
+        mock_request.scope["path"] = '/health'
         mock_request.state.api_key = sample_api_key
         call_next = AsyncMock(return_value=MagicMock())
 
@@ -58,7 +58,7 @@ class TestRateLimitMiddleware:
     @pytest.mark.asyncio
     async def test_dispatch_allowed(self, middleware, mock_request, sample_api_key):
         """Test request within rate limit."""
-        mock_request.url.path = '/geocode'
+        mock_request.scope["path"] = '/geocode'
         mock_request.state.api_key = sample_api_key
 
         mock_response = MagicMock()
@@ -80,7 +80,7 @@ class TestRateLimitMiddleware:
     @pytest.mark.asyncio
     async def test_dispatch_rate_limited(self, middleware, mock_request, sample_api_key):
         """Test request exceeding rate limit."""
-        mock_request.url.path = '/geocode'
+        mock_request.scope["path"] = '/geocode'
         mock_request.state.api_key = sample_api_key
         call_next = AsyncMock()
 

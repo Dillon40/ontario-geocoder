@@ -73,7 +73,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             Response
         """
         # Check if path is excluded
-        if self._is_excluded(request.url.path):
+        if self._is_excluded(request.scope["path"]):
             request.state.api_key = None
             return await call_next(request)
 
@@ -88,7 +88,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not api_key:
             # Note: exceptions raised inside BaseHTTPMiddleware.dispatch bypass
             # FastAPI's exception handlers, so return a response directly.
-            logger.warning(f'Auth rejected (missing API key): {request.method} {request.url.path}')
+            logger.warning(f'Auth rejected (missing API key): {request.method} {request.scope["path"]}')
             return JSONResponse(
                 status_code=401,
                 content=_error_content(
@@ -101,7 +101,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         key_data = await api_keys.validate_key(api_key)
 
         if not key_data:
-            logger.warning(f'Auth rejected (invalid API key): {request.method} {request.url.path}')
+            logger.warning(f'Auth rejected (invalid API key): {request.method} {request.scope["path"]}')
             return JSONResponse(
                 status_code=401,
                 content=_error_content(
@@ -118,7 +118,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not self._check_permissions(request, key_data):
             logger.warning(
                 f'Auth rejected (insufficient permissions, key id={key_data.get("id")}): '
-                f'{request.method} {request.url.path}'
+                f'{request.method} {request.scope["path"]}'
             )
             return JSONResponse(
                 status_code=403,
@@ -173,7 +173,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             True if permitted
         """
         permissions = key_data.get('permissions', {})
-        path = request.url.path.lower()
+        path = request.scope["path"].lower()
 
         # Map paths to required permissions
         if '/admin/' in path:

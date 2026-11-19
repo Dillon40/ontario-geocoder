@@ -24,7 +24,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.base import BaseHTTPMiddleware
+from .middleware.request_limits import BodySizeLimitMiddleware, RequestTargetMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from pydantic import BaseModel
@@ -183,42 +183,9 @@ app = FastAPI(
 
 
 # =============================================================================
-# Request Body Size Limit Middleware
+# Middleware (last registered runs first)
 # =============================================================================
-
-class BodySizeLimitMiddleware(BaseHTTPMiddleware):
-    """Limit request body size to prevent memory exhaustion attacks."""
-
-    def __init__(self, app, max_size: int = MAX_BODY_SIZE):
-        super().__init__(app)
-        self.max_size = max_size
-
-    async def dispatch(self, request: Request, call_next):
-        # Check Content-Length header if present
-        content_length = request.headers.get('content-length')
-        if content_length:
-            if int(content_length) > self.max_size:
-                return JSONResponse(
-                    status_code=413,
-                    content=error_content(
-                        "request_too_large",
-                        "Request body too large",
-                        details={
-                            "max_size_bytes": self.max_size,
-                            "max_size_mb": self.max_size / (1024 * 1024)
-                        }
-                    )
-                )
-
-        return await call_next(request)
-
-
-# =============================================================================
-# Add Middleware (order matters - first added is last executed)
-# =============================================================================
-
-# Request body size limit
-app.add_middleware(BodySizeLimitMiddleware)
+app.add_middleware(BodySizeLimitMiddleware, max_size=MAX_BODY_SIZE)
 
 # Public paths that don't require authentication
 public_paths = ['/health', '/v1/health', '/docs', '/docs/oauth2-redirect', '/openapi.json', '/redoc']
@@ -229,7 +196,7 @@ app.add_middleware(IPFilterMiddleware, excluded_paths=public_paths)
 # Rate limiting (check after auth so we have API key data)
 app.add_middleware(RateLimitMiddleware, excluded_paths=public_paths)
 
-# Authentication (innermost security middleware)
+# Authenticate before rate limiting and IP filtering, which need the key identity.
 app.add_middleware(AuthMiddleware, excluded_paths=public_paths)
 
 
@@ -238,6 +205,8 @@ app.add_middleware(AuthMiddleware, excluded_paths=public_paths)
 app.add_middleware(CORSMiddleware,
                    allow_origins=security_config.get_allowed_origins(),
                    allow_credentials=True, allow_methods=['*'], allow_headers=['*'])
+# Reject malformed Host/path before CORS or security middleware processes it.
+app.add_middleware(RequestTargetMiddleware)
 from .middleware.response_context import ResponseContextMiddleware
 app.add_middleware(ResponseContextMiddleware)
 
@@ -305,10 +274,7 @@ async def geocode_address(request: Request, body: GeocodeRequest):
         # so this does not re-read the stream)
         verbatim_input = await request.json()
 
-        # Extract MLS number (will be echoed back)
         mls_number = body.mls_number
-
-        # Convert Pydantic model to dict for processing
         address_input = body.model_dump(exclude_none=True)
 
         if not address_input:

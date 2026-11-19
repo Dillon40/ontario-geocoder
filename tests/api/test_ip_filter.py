@@ -128,7 +128,7 @@ class TestIPFilterMiddleware:
     @pytest.mark.asyncio
     async def test_dispatch_no_ip_restrictions(self, middleware, mock_request, sample_api_key):
         """Test that keys with no IP restrictions allow all."""
-        mock_request.url.path = '/geocode'
+        mock_request.scope["path"] = '/geocode'
         mock_request.state.api_key = sample_api_key  # allowed_ips is []
         call_next = AsyncMock(return_value=MagicMock())
 
@@ -139,7 +139,7 @@ class TestIPFilterMiddleware:
     @pytest.mark.asyncio
     async def test_dispatch_ip_allowed(self, middleware, mock_request, admin_api_key):
         """Test request from allowed IP."""
-        mock_request.url.path = '/geocode'
+        mock_request.scope["path"] = '/geocode'
         mock_request.state.api_key = admin_api_key  # allowed_ips: ['192.168.1.0/24', '10.0.0.1']
         mock_request.headers = {}
         mock_request.client.host = '192.168.1.50'  # In allowed range
@@ -153,7 +153,7 @@ class TestIPFilterMiddleware:
     async def test_dispatch_ip_blocked(self, middleware, mock_request, admin_api_key):
         """Test request from blocked IP."""
         from unittest.mock import patch as _patch
-        mock_request.url.path = '/geocode'
+        mock_request.scope["path"] = '/geocode'
         mock_request.state.api_key = admin_api_key
         mock_request.headers = {}
         mock_request.client.host = '172.16.0.1'  # Not in allowed list

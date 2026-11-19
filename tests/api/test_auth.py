@@ -36,35 +36,35 @@ class TestAuthMiddleware:
 
     def test_check_permissions_geocode(self, middleware, sample_api_key, mock_request):
         """Test permission check for geocode endpoint."""
-        mock_request.url.path = '/geocode'
+        mock_request.scope["path"] = '/geocode'
         assert middleware._check_permissions(mock_request, sample_api_key) is True
 
     def test_check_permissions_batch(self, middleware, sample_api_key, mock_request):
         """Test permission check for batch endpoint."""
-        mock_request.url.path = '/geocode/batch'
+        mock_request.scope["path"] = '/geocode/batch'
         assert middleware._check_permissions(mock_request, sample_api_key) is True
 
     def test_check_permissions_stats_denied(self, middleware, sample_api_key, mock_request):
         """Test permission denied for stats endpoint."""
-        mock_request.url.path = '/stats'
+        mock_request.scope["path"] = '/stats'
         # sample_api_key has stats: False
         assert middleware._check_permissions(mock_request, sample_api_key) is False
 
     def test_check_permissions_admin_denied(self, middleware, sample_api_key, mock_request):
         """Test permission denied for admin endpoint."""
-        mock_request.url.path = '/admin/keys'
+        mock_request.scope["path"] = '/admin/keys'
         # sample_api_key has admin: False
         assert middleware._check_permissions(mock_request, sample_api_key) is False
 
     def test_check_permissions_admin_allowed(self, middleware, admin_api_key, mock_request):
         """Test permission allowed for admin with admin key."""
-        mock_request.url.path = '/admin/keys'
+        mock_request.scope["path"] = '/admin/keys'
         assert middleware._check_permissions(mock_request, admin_api_key) is True
 
     @pytest.mark.asyncio
     async def test_dispatch_excluded_path(self, middleware, mock_request):
         """Test that excluded paths skip authentication."""
-        mock_request.url.path = '/health'
+        mock_request.scope["path"] = '/health'
         call_next = AsyncMock(return_value=MagicMock())
 
         await middleware.dispatch(mock_request, call_next)
@@ -75,7 +75,7 @@ class TestAuthMiddleware:
     @pytest.mark.asyncio
     async def test_dispatch_missing_api_key(self, middleware, mock_request):
         """Test that missing API key returns 401."""
-        mock_request.url.path = '/geocode'
+        mock_request.scope["path"] = '/geocode'
         mock_request.headers = {}
         call_next = AsyncMock()
 
@@ -90,7 +90,7 @@ class TestAuthMiddleware:
     @pytest.mark.asyncio
     async def test_dispatch_invalid_api_key(self, middleware, mock_request, mock_database, mock_cache):
         """Test that invalid API key returns 401."""
-        mock_request.url.path = '/geocode'
+        mock_request.scope["path"] = '/geocode'
         mock_request.headers = {'X-API-Key': 'invalid_key'}
         call_next = AsyncMock()
 
@@ -106,7 +106,7 @@ class TestAuthMiddleware:
     @pytest.mark.asyncio
     async def test_dispatch_valid_api_key(self, middleware, mock_request, sample_api_key):
         """Test successful authentication with valid API key."""
-        mock_request.url.path = '/geocode'
+        mock_request.scope["path"] = '/geocode'
         mock_request.headers = {'X-API-Key': 'gc_valid_key'}
         call_next = AsyncMock(return_value=MagicMock())
 

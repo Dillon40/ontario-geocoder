@@ -112,6 +112,7 @@ def admin_api_key():
 def mock_request():
     """Create a mock FastAPI request."""
     request = MagicMock()
+    request.scope = {'type': 'http', 'path': '/geocode'}
     request.url.path = '/geocode'
     request.method = 'POST'
     request.headers = {}

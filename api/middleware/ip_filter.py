@@ -115,7 +115,7 @@ class IPFilterMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Check if path is excluded
-        if self._is_excluded(request.url.path):
+        if self._is_excluded(request.scope["path"]):
             return await call_next(request)
 
         # Get API key from request state (set by auth middleware)
@@ -138,7 +138,7 @@ class IPFilterMiddleware(BaseHTTPMiddleware):
         if not client_ip:
             # Note: exceptions raised inside BaseHTTPMiddleware.dispatch bypass
             # FastAPI's exception handlers, so return a response directly.
-            logger.warning(f'IP filter rejected (no client IP): {request.method} {request.url.path}')
+            logger.warning(f'IP filter rejected (no client IP): {request.method} {request.scope["path"]}')
             return JSONResponse(
                 status_code=400,
                 content=_error_content(
@@ -151,7 +151,7 @@ class IPFilterMiddleware(BaseHTTPMiddleware):
         if not self._is_ip_allowed(client_ip, allowed_ips):
             logger.warning(
                 f'IP filter rejected ({client_ip} not allowed, key id={api_key.get("id")}): '
-                f'{request.method} {request.url.path}'
+                f'{request.method} {request.scope["path"]}'
             )
             return JSONResponse(
                 status_code=403,

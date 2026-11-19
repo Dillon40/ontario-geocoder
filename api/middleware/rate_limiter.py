@@ -73,7 +73,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Check if path is excluded
-        if self._is_excluded(request.url.path):
+        if self._is_excluded(request.scope["path"]):
             return await call_next(request)
 
         # Get API key from request state (set by auth middleware)
@@ -84,7 +84,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Check if this is an admin endpoint
-        is_admin_endpoint = request.url.path.startswith('/admin')
+        is_admin_endpoint = request.scope["path"].rstrip('/').startswith(('/admin/', '/v1/admin/'))
 
         # Get rate limit for this key (use admin limits for admin endpoints)
         if is_admin_endpoint:
@@ -108,7 +108,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             # Note: exceptions raised inside BaseHTTPMiddleware.dispatch bypass
             # FastAPI's exception handlers, so return a response directly.
             logger.warning(
-                f'Rate limit exceeded (key id={key_id}): {request.method} {request.url.path}'
+                f'Rate limit exceeded (key id={key_id}): {request.method} {request.scope["path"]}'
             )
             return JSONResponse(
                 status_code=429,
