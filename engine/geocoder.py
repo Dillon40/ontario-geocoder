@@ -49,9 +49,16 @@ async def lookup_by_pin(address_components: Dict[str, Any]) -> Optional[Dict[str
         # Convert PIN to integer for database query
         pin = int(address_components['pin'])
 
+        conditions = ['pin = $1', 'NOT is_deleted']
+        params = [pin]
+        for field in ('unit_no', 'civic_no_suffix'):
+            value = address_components.get(field)
+            if value is not None and str(value).strip():
+                params.append(str(value).strip())
+                conditions.append(f'UPPER(BTRIM({field})) = UPPER(${len(params)})')
         result = await database.query(
-            'SELECT * FROM properties WHERE pin = $1 AND NOT is_deleted ORDER BY id LIMIT 1',
-            [pin]
+            'SELECT * FROM properties WHERE ' + ' AND '.join(conditions) + ' ORDER BY id LIMIT 1',
+            params
         )
 
         if not result:
@@ -91,7 +98,7 @@ async def match_municipal_data(address_components: Dict[str, Any]) -> Optional[D
     - Layer 5: Fuzzy (postal zone)
     - Layer 6: Fuzzy (city)
 
-    Never makes arbitrary choices - ambiguous results proceed to next layer.
+    Candidates unresolved by field scoring and proximity proceed to the next layer.
 
     Args:
         address_components: Parsed address components
@@ -149,14 +156,11 @@ async def match_nar_data(address_components: Dict[str, Any]) -> Optional[Dict[st
 
 def calculate_enhanced_confidence(result: Dict[str, Any], address_components: Dict[str, Any]) -> Dict[str, Any]:
     """Calculate enhanced confidence score."""
-    # Public identifiers are strings in both single and batch responses. asyncpg
-    # returns BIGINTs as ints; normalize before caching/serializing either route.
+    # Normalize asyncpg BIGINTs to the public string format before caching.
     for field in ('pin', 'gpid'):
         if result.get(field) is not None:
             result[field] = str(result[field])
-    # Municipal/NAR wrappers already finalized the score. Preserve their true
-    # pre-geography base instead of overwriting it with the adjusted final score.
-    # PIN lookups enter here without factors and receive their tier-1 breakdown.
+    # PIN results need a breakdown; preserve the finalized municipal/NAR scores.
     if 'confidence_factors' not in result:
         finalize_confidence(result)
 
@@ -179,12 +183,9 @@ async def geocode(address_input: Any) -> Dict[str, Any]:
     _stats['total_requests'] += 1
 
     try:
-        # Parse address
         address_components = parse_address(address_input)
 
-        # Reject un-parseable input up front: no identity fields means nothing to
-        # match, AND every such input shares one cache hash ('|||...'), so it must
-        # never reach the cache (one negative entry would fail all later ones).
+        # Reject input without usable lookup fields before creating cache entries.
         if not any(address_components.get(k) for k in
                    ('pin', 'street_number', 'street_name', 'postal_code')):
             _stats['failed'] += 1
@@ -197,11 +198,9 @@ async def geocode(address_input: Any) -> Dict[str, Any]:
 
         address_hash = generate_address_hash(address_components)
 
-        # Check cache
-        # v7 retires responses missing the verified Hastings attribution.
-        # Retain prior source exclusions, label/score and unit-identity fixes.
-        # Keep auth/rate-limit namespaces intact.
-        cache_key = f'geocode:v7:{address_hash}'
+        # v8 invalidates pre-fix unit/civic-suffix matches without flushing
+        # authentication or rate-limit state.
+        cache_key = f'geocode:v8:{address_hash}'
         cached = await cache.get(cache_key)
 
         if cached:
@@ -256,8 +255,7 @@ async def geocode(address_input: Any) -> Dict[str, Any]:
             'response_time_ms': (datetime.now() - start_time).total_seconds() * 1000
         }
 
-        # Cache negative result (never for all-None parses — belt-and-braces
-        # with the guard above, since they all share one hash)
+        # Negative caching uses a shorter TTL than successful matches.
         if any(address_components.get(k) for k in
                ('pin', 'street_number', 'street_name', 'postal_code')):
             await cache.set_negative(cache_key)

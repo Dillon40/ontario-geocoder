@@ -134,3 +134,61 @@ async def test_upgrade_preserves_custom_sources_and_retires_haldimand(migration_
     assert await conn.fetchval("SELECT is_deleted FROM properties WHERE property_id = 'review-other'") is False
     await initialize(env)
     assert await conn.fetchval('SELECT max(migration_number) FROM schema_migrations') == 41
+
+
+@pytest.mark.parametrize('nar', [False, True])
+async def test_address_identity_with_real_sql_before_limit(migration_db, monkeypatch, nar):
+    """Single wrong candidate, absent values and >10 candidates in both tiers."""
+    from engine import database, geocoder
+    from engine.layered_matcher import LayeredMatcher, LayeredNARMatcher
+    conn, env = migration_db
+    await initialize(env)
+
+    async def query(sql, params=None):
+        return await conn.fetch(sql, *(params or []))
+    monkeypatch.setattr(database, 'query', query)
+    matcher = LayeredNARMatcher() if nar else LayeredMatcher()
+    components = {'street_number': '68', 'street_name': 'Main',
+                  'postal_code': 'M1A1A1', 'city': 'Toronto',
+                  'unit_no': '99', 'civic_no_suffix': 'B'}
+
+    async def insert(unit, suffix):
+        if nar:
+            await conn.execute('''
+                INSERT INTO nar_addresses (addr_guid, civic_no, civic_no_suffix,
+                    apt_no_label, official_street_name, csd_eng_name, prov_code,
+                    mail_postal_code, latitude, longitude)
+                VALUES ($1, '68', $2, $3, 'Main', 'Toronto', 35, 'M1A1A1', 44, -79)
+            ''', uuid.uuid4(), suffix, unit)
+        else:
+            await conn.execute('''
+                INSERT INTO properties (property_id, street_number, civic_no_suffix,
+                    unit_no, street_name, city, postal_code, fsa_code,
+                    latitude, longitude, source_dataset, pin)
+                VALUES ($1, '68', $2, $3, 'Main', 'Toronto', 'M1A1A1', 'M1A',
+                        44, -79, 'toronto', 123)
+            ''', str(uuid.uuid4()), suffix, unit)
+
+    # A single contradictory row must not become an exact or fallback match.
+    await insert('1', 'A')
+    assert await matcher.match(components) is None
+    if not nar:
+        assert await geocoder.lookup_by_pin({**components, 'pin': '123'}) is None
+    # Missing identity is not evidence of the supplied unit/suffix either.
+    await insert(None, None)
+    assert await matcher.match(components) is None
+    # Neither independently matching field may compensate for the other conflict.
+    await insert('99', 'A')
+    await insert('1', 'B')
+    assert await matcher.match(components) is None
+    for i in range(20):
+        await insert(str(i), 'A')
+    # The right row is beyond the old LIMIT, and normalization is intentional.
+    await insert(' 99 ', ' b ')
+    result = await matcher.match(components)
+    assert result is not None
+    assert result['match_layer'] == 0
+    assert '99' in result['matched_address']
+    if not nar:
+        result = await geocoder.lookup_by_pin({**components, 'pin': '123'})
+        assert result is not None and '99' in result['matched_address']

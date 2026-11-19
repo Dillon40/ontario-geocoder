@@ -3,7 +3,7 @@ Layered address matching module with progressive fallback strategy.
 
 Key Principles:
 1. Exact match first - when user provides perfect data, match it exactly
-2. Never make arbitrary choices - multiple ambiguous results = proceed to next layer
+2. Disambiguate candidates by field scores and proximity; otherwise try the next layer
 3. Cache results forward for efficiency
 4. Geographic fields used for scoring/disambiguation, not just filtering
 5. Track which layer matched and why we proceeded through layers
@@ -52,6 +52,16 @@ async def query_candidates(query, params, components):
         params.append(sorted(variants))
         conditions.append(f"({column} IS NULL OR btrim({column}) = '' OR "
                           f"UPPER(REPLACE({column}, '.', '')) = ANY(${len(params)}::text[]))")
+    # Filter supplied units/suffixes before LIMIT; unrelated units must not
+    # crowd out the requested address. Missing stored values do not match.
+    for field, column in (
+        ('unit_no', 'a.apt_no_label' if nar else 'unit_no'),
+        ('civic_no_suffix', prefix + 'civic_no_suffix'),
+    ):
+        value = components.get(field)
+        if value is not None and str(value).strip():
+            params.append(str(value).strip())
+            conditions.append(f'UPPER(BTRIM({column})) = UPPER(${len(params)})')
     query = re.sub(r'\bWHERE\b', 'WHERE ' + ' AND '.join(conditions) + ' AND', query, count=1)
     return await database.query(query, params)
 
@@ -85,28 +95,15 @@ class MatchMetadata:
     civic_suffix_fallback: bool = False  # True when matched via suffix variant (e.g., "1" -> "1A")
 
 
-# Backward-compatible name for municipal callers/tests. NAR has a separate
-# scale; all strategy tables and final tier ceilings live in confidence.py.
+# Municipal alias; NAR scores and tier ceilings are defined in confidence.py.
 LAYER_CONFIDENCE = MUNICIPAL_LAYER_CONFIDENCE
 
 # Minimum score gap required to declare a clear winner in disambiguation
 DISAMBIGUATION_MARGIN = 10
 
-# When scoring can't separate the leading candidates, they may still be the same
-# physical place recorded more than once: a source dataset can hold several rows
-# for one civic address (e.g. a condo tower whose units share a street number,
-# or the same address arriving in two files), each geocoded independently so the
-# coordinates differ by a few metres rather than being bit-identical. If every
-# leading candidate lies within this radius (metres) of the others, any of them
-# returns the right building, so we take the top-scored row instead of dropping
-# to a coarser tier.
-#
-# Chosen at building/parcel scale. The observed duplicate spread is bimodal: a
-# tight cluster of geocoding noise (a few metres) and a long tail of genuinely
-# different places that happen to share a civic+street+city string across an
-# amalgamated municipality (hundreds of metres to kilometres). This radius
-# recovers the former as Tier-2 matches while leaving the latter ambiguous, and
-# bounds the worst-case position error it can introduce to its own value.
+# Near-tied candidates within this pairwise distance may represent duplicate
+# address points. The proximity fallback is a heuristic, not an accuracy bound
+# or proof that the candidates identify the same building.
 SAME_LOCATION_RADIUS_M = 50.0
 
 
@@ -121,9 +118,7 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def _rows_colocated(rows: List[Any], table_type: str) -> bool:
-    """True if every row has coordinates and all pairwise distances are within
-    SAME_LOCATION_RADIUS_M — i.e. the rows denote one physical location. Any
-    missing coordinate returns False (we can't prove co-location, so don't)."""
+    """Check pairwise proximity; missing coordinates cannot establish proximity."""
     coords = [_row_coordinates(row, table_type) for row in rows]
     if len(coords) < 2 or any(c is None for c in coords):
         return False
@@ -255,19 +250,8 @@ def disambiguate(results: List[Any], input_components: Dict[str, Any], table_typ
     if margin > DISAMBIGUATION_MARGIN:
         return scores[0][1], True, margin
 
-    # No clear scoring winner. Before dropping to a coarser tier, check whether
-    # the leading candidates — those scoring can't cleanly separate — are all
-    # the SAME physical location. A source dataset often holds several rows for
-    # one civic address (condo units without unit numbers, or the same address
-    # from two files), each geocoded with a few metres of noise. If every
-    # contender sits within SAME_LOCATION_RADIUS_M of the others, any of them
-    # returns the right building, so we take the top-scored row.
-    #
-    # "Contenders" are the rows within DISAMBIGUATION_MARGIN of the best score:
-    # the ones that couldn't be clearly beaten. A genuinely different place that
-    # shares the civic+street+city string sits far outside the radius, so this
-    # stays ambiguous and proceeds to the next layer rather than silently
-    # returning wrong coordinates.
+    # With at least one matching field, accept the top row if all contenders
+    # within the scoring margin also pass the proximity heuristic above.
     if best_score > 0:
         contenders = [row for score, row in scores if score >= best_score - DISAMBIGUATION_MARGIN]
         if _rows_colocated(contenders, table_type):
@@ -328,6 +312,8 @@ def build_result_from_nar_row(row: Any, layer: int, metadata: MatchMetadata) -> 
     address_parts = [p for p in address_parts if p]
     address_str = ' '.join(address_parts)
 
+    if row.get('apt_no_label'):
+        address_str = f"Unit {row['apt_no_label']}, {address_str}"
     full_address = f"{address_str}, {row.get('csd_eng_name', '')}, ON {row.get('mail_postal_code', '')}"
 
     return {

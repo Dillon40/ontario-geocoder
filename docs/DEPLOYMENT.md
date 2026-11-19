@@ -65,7 +65,8 @@ verified address location. Migration 39 and the fresh seed block Haldimand until
 parcel-coordinate policy is implemented; `--all-confirmed` skips it, and explicit orchestrated
 requests/direct imports reject it. Its endpoint, mapping and licence metadata are retained. Migration 40 also retires
 previously imported Haldimand rows and their SQL cache entries; response-cache namespace
-v7 prevents reuse of older Redis matches, including responses missing Hastings attribution.
+v8 prevents reuse of older Redis matches, including responses missing Hastings attribution
+and matches made before strict unit/civic-suffix filtering.
 `--force`, `--accept-non-commercial`, and direct municipal importer calls cannot override the block. Migration 37 retires previously
 imported Middlesex municipal rows; a fresh seed also starts blocked.
 
@@ -276,9 +277,14 @@ package registry access is not required at ETL runtime.
 The exact endpoints are versioned in `database/seed_data_sources.sql` and migration 35;
 migration 36 corrects the Middlesex licence metadata; migration 37 blocks it and soft-deletes
 its municipal records. Audit history and NAR rows are preserved. The current API response-cache
-namespace is **v7**, superseding v3/v4/v5/v6: old municipal hits, missing Hamilton labels, pre-fix NAR
-scores and missing Hastings attribution cannot be served from old caches. Address cache keys
-include the requested unit, preventing one unit's matched label from being reused for another. Authentication and rate-limit state are not flushed.
+namespace is **v8**, superseding v3/v4/v5/v6/v7: old municipal hits, missing Hamilton labels,
+pre-fix NAR scores, missing Hastings attribution and pre-fix unit/civic-suffix matches cannot be
+served from old caches. Address cache keys
+include the requested unit, preventing one unit's matched label from being reused for another. Supplied units and civic suffixes must
+match stored values before candidate limits in municipal, NAR and PIN lookups. Unknown or
+conflicting stored values do not count as matches; this deliberately trades some coverage for
+address identity. NAR labels retain the matched apartment label. Authentication and rate-limit
+state are not flushed.
 Rebuild/recreate the API to deploy the cache policy and apply migration 40 to retire existing
 Haldimand imports. Apply migration 41 and rebuild/recreate the API to refresh Hastings licence
 metadata and response caches; no address reimport is required for this metadata correction.
