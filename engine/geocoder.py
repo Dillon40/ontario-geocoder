@@ -198,10 +198,10 @@ async def geocode(address_input: Any) -> Dict[str, Any]:
         address_hash = generate_address_hash(address_components)
 
         # Check cache
-        # v6 also retires cached Haldimand parcel-derived matches. Retain the
-        # composed-label, tier-score and unit-identity corrections from v5.
+        # v7 retires responses missing the verified Hastings attribution.
+        # Retain prior source exclusions, label/score and unit-identity fixes.
         # Keep auth/rate-limit namespaces intact.
-        cache_key = f'geocode:v6:{address_hash}'
+        cache_key = f'geocode:v7:{address_hash}'
         cached = await cache.get(cache_key)
 
         if cached:

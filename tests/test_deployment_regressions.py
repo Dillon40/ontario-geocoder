@@ -253,7 +253,7 @@ async def test_old_municipal_response_cache_namespace_is_not_read():
     from engine import geocoder
     with patch.object(geocoder.cache,'get',AsyncMock(return_value={'success':True,'source':'nar_match'})) as cache_get:
         await geocoder.geocode({'street_number':'21605','street_name':'Adelaide','city':'Middlesex Centre'})
-    assert cache_get.call_args.args[0].startswith('geocode:v6:')
+    assert cache_get.call_args.args[0].startswith('geocode:v7:')
 
 
 def test_exclusion_migration_preserves_nar_and_audit_rows():

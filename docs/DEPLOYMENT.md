@@ -53,16 +53,20 @@ with explicit mapping aliases and canonical inventory keys (for example `brantfo
 `brantford_addresses`). Seeding is not importing: confirm each upstream endpoint/schema and
 review the per-source import summary. Historical commercial-use approvals are retained;
 outstanding bespoke attribution reviews and Frontenac licence archival requirements remain
-recorded in `license_notes`, not replaced with invented attribution. Windsor, Sarnia, London and
-Elgin licence evidence is archived in [`licences/README.md`](licences/README.md). London's credit
-is optional; redistribution must still include its terms/URL and bind recipients. Haldimand's
+recorded in `license_notes`, not replaced with invented attribution. Windsor, Sarnia, London,
+Elgin and Hastings licence evidence is archived in [`licences/README.md`](licences/README.md).
+Hastings item-level `licenseInfo` explicitly permits commercial reuse and specifies:
+“Contains information licensed under the Open Government License – The Corporation of the County of Hastings.”
+Fresh seeds and migration 41 install these verified defaults; custom attribution/licence fields,
+source exclusions and commercial-use decisions are preserved. London's credit is optional;
+redistribution must still include its terms/URL and bind recipients. Haldimand's
 configured endpoint remains reachable but serves parcel polygons: its first vertex is not a
 verified address location. Migration 39 and the fresh seed block Haldimand until an approved
 parcel-coordinate policy is implemented; `--all-confirmed` skips it, and explicit orchestrated
 requests/direct imports reject it. Its endpoint, mapping and licence metadata are retained. Migration 40 also retires
 previously imported Haldimand rows and their SQL cache entries; response-cache namespace
-v6 prevents reuse of older Redis matches. `--force`, `--accept-non-commercial`,
-and direct municipal importer calls cannot override the block. Migration 37 retires previously
+v7 prevents reuse of older Redis matches, including responses missing Hastings attribution.
+`--force`, `--accept-non-commercial`, and direct municipal importer calls cannot override the block. Migration 37 retires previously
 imported Middlesex municipal rows; a fresh seed also starts blocked.
 
 Do not run `make dev` afterward: the API is already running. Allow disk space for raw downloads,
@@ -272,12 +276,14 @@ package registry access is not required at ETL runtime.
 The exact endpoints are versioned in `database/seed_data_sources.sql` and migration 35;
 migration 36 corrects the Middlesex licence metadata; migration 37 blocks it and soft-deletes
 its municipal records. Audit history and NAR rows are preserved. The current API response-cache
-namespace is **v6**, superseding v3/v4/v5: old municipal hits, missing Hamilton labels and pre-fix NAR
-scores cannot be served from old caches. Address cache keys include the requested unit, preventing
-one unit's matched label from being reused for another. Authentication and rate-limit state are not flushed.
+namespace is **v7**, superseding v3/v4/v5/v6: old municipal hits, missing Hamilton labels, pre-fix NAR
+scores and missing Hastings attribution cannot be served from old caches. Address cache keys
+include the requested unit, preventing one unit's matched label from being reused for another. Authentication and rate-limit state are not flushed.
 Rebuild/recreate the API to deploy the cache policy and apply migration 40 to retire existing
-Haldimand imports. Base-source seed inserts fill missing rows without resetting existing
-operator endpoints, attribution, download settings or audit state.
+Haldimand imports. Apply migration 41 and rebuild/recreate the API to refresh Hastings licence
+metadata and response caches; no address reimport is required for this metadata correction.
+Base-source seed inserts fill missing rows without resetting existing operator endpoints,
+attribution, download settings or audit state.
 Do not reinitialize from the historical markdown source lists.
 
 ## Migrations and upgrades

@@ -2236,5 +2236,42 @@ DELETE FROM geocode_cache WHERE matched_property_id IN (
 COMMIT;
 
 -- ============================================================================
+-- MIGRATION 41: Verify Hastings attribution from ArcGIS item licence metadata
+-- ============================================================================
+
+BEGIN;
+
+-- BEGIN HASTINGS ITEM LICENCE CORRECTION
+-- Licence terms belong to the ArcGIS item, not the layer's empty copyrightText.
+-- Update only missing/known legacy defaults; retain operator customizations,
+-- exclusions, commercial-use decisions, endpoints and import/download history.
+UPDATE data_sources SET
+    required_attribution = CASE
+        WHEN required_attribution IS NULL OR btrim(required_attribution) = ''
+        THEN 'Contains information licensed under the Open Government License – The Corporation of the County of Hastings.'
+        ELSE required_attribution END,
+    license_url = CASE
+        WHEN license_url IS NULL OR license_url = 'https://ago-item-storage.s3.amazonaws.com/e2f14950bfbd4c138da4b60c71f3a134/County_GIS_Open_Data_Initiative_Agreement_2017.pdf'
+        THEN 'https://www.arcgis.com/sharing/rest/content/items/d1edbea63ca24e5bbd2363c3015bfdb0?f=pjson'
+        ELSE license_url END,
+    license_type = CASE
+        WHEN license_type IS NULL OR license_type = 'Open Government License'
+        THEN 'Open Government License – Corporation of the County of Hastings'
+        ELSE license_type END,
+    license_notes = CASE
+        WHEN license_notes IS NULL OR license_notes = 'Commercial permission retained from the confirmed inventory. Attribution text pending per-licence review before commercial launch.'
+        THEN 'Commercial reuse and default attribution verified from ArcGIS item licenseInfo archived at docs/licences/hastings_open_data_terms.json. Item accessInformation: Hastings County 2026.'
+        ELSE license_notes END
+WHERE source_key = 'hastings_county' AND (
+    required_attribution IS NULL OR btrim(required_attribution) = '' OR
+    license_url IS NULL OR license_url = 'https://ago-item-storage.s3.amazonaws.com/e2f14950bfbd4c138da4b60c71f3a134/County_GIS_Open_Data_Initiative_Agreement_2017.pdf' OR
+    license_type IS NULL OR license_type = 'Open Government License' OR
+    license_notes IS NULL OR license_notes = 'Commercial permission retained from the confirmed inventory. Attribution text pending per-licence review before commercial launch.'
+);
+-- END HASTINGS ITEM LICENCE CORRECTION
+
+COMMIT;
+
+-- ============================================================================
 -- END OF MIGRATIONS
 -- ============================================================================

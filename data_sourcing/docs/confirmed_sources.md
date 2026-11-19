@@ -123,7 +123,7 @@ entry below is retained for provenance, not as approval to download/import.
 | Frontenac County | Frontenac Open Data Licence (Open Government License adapted) | Yes | [View](https://frontenacmaps.ca) | Commercial use allowed, requires attr... |
 | Greater Sudbury | commercial_with_attribution | Yes | [View](https://www.greatersudbury.ca/city-hall/open-government/open-data/licence/) | Adapted Open Government License - req... |
 | Haldimand County - Address Points | Open Government Licence - Haldimand County (Version 1.0) | Yes | [View](https://opendata-haldimand.hub.arcgis.com/) | Commercial use explicitly permitted. ... |
-| Hastings County | Open Government License | Yes | [View](https://ago-item-storage.s3.amazonaws.com/e2f14950bfbd4c138da4b60c71f3a134/County_GIS_Open_Data_Initiative_Agreement_2017.pdf) | Commercial use permitted with attribu... |
+| Hastings County | Open Government License – Corporation of the County of Hastings | Yes | [Item licence metadata](https://www.arcgis.com/sharing/rest/content/items/d1edbea63ca24e5bbd2363c3015bfdb0?f=pjson) | Explicit commercial reuse; verified default attribution and archived licence under docs/licences/. |
 | Huron County - Municipal 911 Addresses | Open Government License | Yes | [View](https://data-huron.opendata.arcgis.com/datasets/55ae362c840344cdb3422d496db10d64_0/about) | Commercial use permitted with attribu... |
 | Leeds and Grenville | Open Government License (Adapted) | Yes | [View](https://geohub-uclg.hub.arcgis.com/pages/terms-of-use) | Commercial use allowed with attributi... |
 | Niagara Region - Address Points | Open Government Licence 2.0 - Niagara Region | Yes | [View](https://www.niagaraopendata.ca/dataset/address-points) | Based on Open Government License. Com... |
@@ -230,7 +230,15 @@ entry below is retained for provenance, not as approval to download/import.
 
 ### Hastings County
 
-**General Notes:** Confirmed REST access
+**General Notes:** Confirmed REST access. Licence and attribution are in the ArcGIS item's
+`licenseInfo`, not the layer's empty `copyrightText`. Item `accessInformation` is
+`Hastings County 2026`. The default attribution is:
+
+> Contains information licensed under the Open Government License – The Corporation of the County of Hastings.
+
+The full item metadata, including the commercial-use grant and licence terms, is archived at
+[`docs/licences/hastings_open_data_terms.json`](../../docs/licences/hastings_open_data_terms.json).
+Fresh seeds and migration 41 apply the verified defaults while preserving operator-customized metadata.
 
 ### Huron County - Municipal 911 Addresses
 

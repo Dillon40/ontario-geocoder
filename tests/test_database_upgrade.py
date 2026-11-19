@@ -61,7 +61,10 @@ async def test_fresh_initialization_and_repeat(migration_db):
     conn, env = migration_db
     await initialize(env)
     assert await conn.fetchval("SELECT count(*) FROM data_sources WHERE status = 'confirmed'") == 36
-    assert await conn.fetchval('SELECT max(migration_number) FROM schema_migrations') == 40
+    assert await conn.fetchval('SELECT max(migration_number) FROM schema_migrations') == 41
+    hastings = await conn.fetchrow("SELECT required_attribution, license_url FROM data_sources WHERE source_key = 'hastings_county'")
+    assert hastings['required_attribution'] == 'Contains information licensed under the Open Government License – The Corporation of the County of Hastings.'
+    assert hastings['license_url'] == 'https://www.arcgis.com/sharing/rest/content/items/d1edbea63ca24e5bbd2363c3015bfdb0?f=pjson'
     assert await conn.fetchval('SELECT count(*) FROM schema_migrations WHERE checksum IS NULL') == 0
     for key in ('haldimand_county_addresses', 'middlesex_county_addresses', 'bruce_county_addresses'):
         assert await conn.fetchval('SELECT status FROM data_sources WHERE source_key = $1', key) == 'blocked'
@@ -94,6 +97,15 @@ async def test_upgrade_preserves_custom_sources_and_retires_haldimand(migration_
             required_attribution = 'Operator attribution', license_url = 'https://operator.example/licence',
             status = 'blocked', record_count = 42, last_data_refresh = '2025-01-01'
         WHERE source_key IN ('toronto_addresses', 'fsa_boundaries', 'ontario_municipal_boundaries');
+        INSERT INTO data_sources (source_key, source_name, status, license_type, license_url,
+            required_attribution, license_notes, commercial_use_allowed, record_count, regions_covered)
+        VALUES ('hastings_county', 'Hastings County', 'blocked', 'Operator licence',
+            'https://operator.example/hastings-licence', 'Operator Hastings attribution',
+            'Operator Hastings notes', FALSE, 42, ARRAY['Hastings'])
+        ON CONFLICT (source_key) DO UPDATE SET status = 'blocked', license_type = 'Operator licence',
+            license_url = 'https://operator.example/hastings-licence',
+            required_attribution = 'Operator Hastings attribution', license_notes = 'Operator Hastings notes',
+            commercial_use_allowed = FALSE, record_count = 42;
         DELETE FROM data_source_types WHERE data_source_id IN
             (SELECT id FROM data_sources WHERE source_key = 'guelph_addresses');
         DELETE FROM data_sources WHERE source_key = 'guelph_addresses';
@@ -107,9 +119,11 @@ async def test_upgrade_preserves_custom_sources_and_retires_haldimand(migration_
         INSERT INTO geocode_cache (address_hash, matched_property_id) VALUES
             ('review-haldimand', 'review-haldimand-1'), ('review-other', 'review-other');
     """)
-    before = await conn.fetch("SELECT * FROM data_sources WHERE source_key IN ('toronto_addresses', 'fsa_boundaries', 'ontario_municipal_boundaries') ORDER BY source_key")
+    custom_keys = ['toronto_addresses', 'fsa_boundaries', 'ontario_municipal_boundaries', 'hastings_county']
+    query = 'SELECT * FROM data_sources WHERE source_key = ANY($1::text[]) ORDER BY source_key'
+    before = await conn.fetch(query, custom_keys)
     await initialize(env)
-    assert await conn.fetch("SELECT * FROM data_sources WHERE source_key IN ('toronto_addresses', 'fsa_boundaries', 'ontario_municipal_boundaries') ORDER BY source_key") == before
+    assert await conn.fetch(query, custom_keys) == before
     assert await conn.fetchval("SELECT count(*) FROM data_sources WHERE source_key = 'guelph_addresses'") == 1
     assert await conn.fetchval("SELECT count(*) FROM properties WHERE source_dataset LIKE 'haldimand%' AND NOT is_deleted") == 0
     assert await conn.fetchval("SELECT count(*) FROM properties WHERE source_dataset LIKE 'haldimand%'") == 3
@@ -119,4 +133,4 @@ async def test_upgrade_preserves_custom_sources_and_retires_haldimand(migration_
     assert await conn.fetchval("SELECT count(*) FROM geocode_cache WHERE address_hash = 'review-other'") == 1
     assert await conn.fetchval("SELECT is_deleted FROM properties WHERE property_id = 'review-other'") is False
     await initialize(env)
-    assert await conn.fetchval('SELECT max(migration_number) FROM schema_migrations') == 40
+    assert await conn.fetchval('SELECT max(migration_number) FROM schema_migrations') == 41
