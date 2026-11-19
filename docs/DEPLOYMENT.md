@@ -31,6 +31,17 @@ make docker-etl
 
 The default ETL target accepts non-commercial licence consent; review the source licences
 before running it. Use `make docker-etl ETL_ARGS='--all-confirmed --commercial-only'` if required.
+For an explicitly municipal-only installation, including required boundary datasets but not NAR:
+
+```bash
+make docker-etl ETL_ARGS='--municipal-only --commercial-only'
+```
+
+This selection does not download/import NAR, change its registry status, or delete previously
+imported NAR rows. Existing NAR data remains usable by the API. `--municipal-only` is an alternative
+to `--all-confirmed`/`--source`, not a way to ignore requested download failures. Both full-source
+and explicit NAR imports still exit nonzero on a NAR download/import failure, while continuing
+independent sources. A municipal-only run certifies neither NAR freshness nor province-wide coverage.
 Middlesex municipal data is **blocked by operator decision**, not merely filtered by commercial-use
 flags. Both the 2022 snapshot and newer county feed lack a verified permissive grant. Default setup
 seeds 36 confirmed sources (33 municipal, NAR and two boundary datasets) and uses NAR for
@@ -312,20 +323,37 @@ Fresh installs directly create 55,908 address IDs for the tested source snapshot
 
 ## Live regression gate
 
-After imports, run the checked-in 46-check live probe with an **admin** key. It tests real middleware,
-single/batch parity, the README coordinates/direction, Hamilton labels and distinct unit identities, Middlesex exclusion,
-NAR scores/breakdowns (including an exact postal match), caching, CORS, key revocation, rate limiting
-and proxy spoof denial. Temporary keys are revoked even if a check fails.
-For shell use, `API_KEY` must be exported in the caller's environment:
+After imports, run the coverage-aware live probe with an **admin** key. It tests real middleware,
+single/batch parity, the README coordinates/direction, Hamilton labels and distinct unit identities,
+Middlesex municipal exclusion, caching, CORS, key revocation, rate limiting and proxy spoof denial.
+The default mode requires the municipal regression fixture sources (Guelph, Hamilton, Toronto,
+Ottawa), but does not require NAR. If NAR addresses are present, it also runs the NAR single,
+cached and batch score/breakdown checks, including the exact postal match. Populated but broken
+NAR is a failure, not an optional skip. Download availability is not used to infer runtime coverage.
+For shell use, export `API_KEY` in the caller's environment:
 
 ```bash
+# Verify available operation; report missing NAR as explicit skipped checks.
 docker compose -f docker-compose.prod.yml exec -e API_KEY api python -m api.scripts.verify_deployment
+# Require NAR as well as the municipal regression fixtures.
+docker compose -f docker-compose.prod.yml exec -e API_KEY api python -m api.scripts.verify_deployment --full-coverage
 ```
 
-Do not disable authentication to run the probe. When testing a second DB on the same Redis server,
-use a separate Redis logical database (e.g. `REDIS_URL=redis://redis:6379/1`) so cached geocodes and
-API-key caches from the first DB cannot mask failures. If a source is intentionally not imported,
-the full-deployment probe should fail rather than certify an incomplete installation.
+An empty NAR table does not block API startup or municipal matching. In default mode, successful
+municipal verification exits zero with **municipal operation verified; NAR fallback unavailable**,
+not a complete-coverage claim. Without NAR, requests outside imported municipal coverage can
+return 404, including Middlesex requests. `--full-coverage` records missing NAR as a failure and
+exits nonzero, but still runs independent municipal/security checks. All modes report named
+failures, explicit dependency skips, actual database source counts and passed/failed/skipped totals.
+A response is marked PASS only after its content contract passes; failures do not abort independent
+checks. Temporary keys with returned IDs are revoked in cleanup blocks even when a check fails;
+cleanup failures are reported as failures. Checks whose prerequisites failed are explicitly skipped.
+
+These are regression fixtures, not an audit of every confirmed source or province-wide accuracy;
+continue reviewing ETL outcomes and per-source database counts. Rebuild the API image to deploy
+probe changes. Do not disable authentication to run the probe. When testing a second DB on the
+same Redis server, use a separate Redis logical database (e.g. `REDIS_URL=redis://redis:6379/1`)
+so cached geocodes and API-key caches from the first DB cannot mask failures.
 
 ## Network, security and operation
 

@@ -128,12 +128,7 @@ curl http://localhost:3000/v1/health
 
 Compose starts the API and runs tracked database initialization automatically. Do **not** run
 host `make import-all` or `make dev` against this stack: PostgreSQL has no host port and the API
-is already running. See [the deployment runbook](docs/DEPLOYMENT.md) for authentication,
-per-source imports, verification and recovery. Health means DB/Redis connectivity, not complete data coverage. Fresh initialization seeds
-confirmed sources; metadata alone does not prove successful imports. NAR upstream access can require a Cloudflare challenge;
-see the runbook's headless NAR options before assuming unattended downloads will succeed.
-Middlesex municipal data is excluded because permissive reuse rights could not be verified;
-Middlesex requests use the NAR fallback, with its documented coordinate-coverage limitations.
+is already running. See [the deployment runbook](docs/DEPLOYMENT.md) for authentication, per-source imports, verification and recovery. Health means DB/Redis connectivity, not complete data coverage. Fresh initialization seeds confirmed sources; metadata alone does not prove successful imports. NAR upstream access can require a Cloudflare challenge; see the runbook's headless NAR options before assuming unattended downloads will succeed. To intentionally install municipal datasets and required boundaries without NAR, use `make docker-etl ETL_ARGS='--municipal-only --commercial-only'` instead of `make docker-etl`. Municipal matching works without NAR. The live probe verifies municipal operation and explicitly skips unavailable NAR checks; use `--full-coverage` to require NAR too. Neither mode's regression fixtures certify complete province-wide coverage. Requested NAR download failures still make full-source ETL exit nonzero; they do not stop independent municipal imports or API operation. Middlesex municipal data is excluded because permissive reuse rights could not be verified; Middlesex requests depend on the NAR fallback when available, with its documented coordinate-coverage limitations.
 
 #### Native host (separate alternative)
 

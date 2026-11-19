@@ -520,6 +520,9 @@ Examples:
   # Full setup with all confirmed sources
   DB_HOST=localhost %(prog)s --all-confirmed
 
+  # Municipal sources and required boundaries, intentionally excluding NAR
+  DB_HOST=localhost %(prog)s --municipal-only --commercial-only
+
   # Download only (no import)
   DB_HOST=localhost %(prog)s --all-confirmed --download-only
 
@@ -536,9 +539,12 @@ Examples:
   DB_HOST=localhost %(prog)s --all-confirmed --accept-non-commercial
         """
     )
-    parser.add_argument('--source', '-s', help='Specific source_key to process')
-    parser.add_argument('--all-confirmed', '-a', action='store_true',
-                        help='Process all confirmed sources')
+    selection = parser.add_mutually_exclusive_group(required=True)
+    selection.add_argument('--source', '-s', help='Specific source_key to process')
+    selection.add_argument('--all-confirmed', '-a', action='store_true',
+                           help='Process all confirmed sources (including NAR)')
+    selection.add_argument('--municipal-only', action='store_true',
+                           help='Process confirmed municipal sources and required boundaries, excluding NAR')
     parser.add_argument('--download-only', '-d', action='store_true',
                         help='Only download, do not import')
     parser.add_argument('--import-only', '-i', action='store_true',
@@ -551,14 +557,10 @@ Examples:
                         help='Accept sources without commercial use permission (no prompt)')
     parser.add_argument('--commercial-only', action='store_true',
                         help='Only process sources with explicit commercial use permission')
-    parser.add_argument('--list', '-l', action='store_true',
-                        help='List sources and their status')
+    selection.add_argument('--list', '-l', action='store_true',
+                           help='List sources and their status')
 
     args = parser.parse_args()
-
-    if not args.source and not args.all_confirmed and not args.list:
-        parser.print_help()
-        sys.exit(1)
 
     conn = await get_db_connection()
 
@@ -622,6 +624,13 @@ Examples:
         for source_info in all_sources:
             source_key = source_info['source_key']
 
+            if args.municipal_only and not (
+                source_key in PRIORITY_VALIDATION or
+                Path(source_info.get('import_script') or '').name == 'import_production_data.py'
+            ):
+                skipped.append((source_key, 'excluded by --municipal-only (not a municipal/boundary source)'))
+                continue
+
             # Skip manual downloads if requested
             if args.skip_manual and source_info.get('requires_manual_download'):
                 skipped.append((source_key, 'requires manual download'))
@@ -641,6 +650,10 @@ Examples:
                 for key, reason in skipped:
                     print(f"  - {key}: {reason}")
             sys.exit(0)
+
+        if args.municipal_only:
+            print('MUNICIPAL-ONLY scope: municipal datasets and required boundaries. '
+                  'NAR is intentionally excluded; this run does not establish province-wide fallback coverage.')
 
         # Sort: commercial-allowed first, then maintain import order
         sources_to_process = sort_sources_by_commercial(sources_to_process, source_keys)
